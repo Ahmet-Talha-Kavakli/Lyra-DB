@@ -8,6 +8,8 @@ import { AiTherapistModule } from './modules/ai-therapist/ai-therapist.module';
 import { MemoryModule } from './modules/memory/memory.module';
 import { UserModule } from './modules/user/user.module';
 import { InngestModule } from './inngest/inngest.module';
+import { JournalModule } from './modules/journal/journal.module';
+import { MoodModule } from './modules/mood/mood.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -21,6 +23,8 @@ import { AppController } from './app.controller';
     MemoryModule,
     UserModule,
     InngestModule,
+    JournalModule,
+    MoodModule,
   ],
 })
 export class AppModule {

@@ -16,13 +16,15 @@ model User {
   featureFlags Json          @default("{}") @map("feature_flags")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
-  profile      UserProfile?
-  consents     UserConsent[]
-  sessions     Session[]
-  memories     SessionMemory[]
-  wearableData WearableData[]
-  crisisLogs   CrisisLog[]
-  auditLogs    AuditLog[]
+  profile        UserProfile?
+  consents       UserConsent[]
+  sessions       Session[]
+  memories       SessionMemory[]
+  wearableData   WearableData[]
+  crisisLogs     CrisisLog[]
+  auditLogs      AuditLog[]
+  journalEntries JournalEntry[]
+  moodLogs       MoodLog[]
 
   @@map("users")
 }
@@ -143,4 +145,27 @@ model AuditLog {
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+model JournalEntry {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  entryDate DateTime @map("entry_date") @db.Date
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
+  @@map("journal_entries")
+}
+
+model MoodLog {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  score    Int
+  loggedAt DateTime @default(now()) @map("logged_at")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mood_logs")
 }
