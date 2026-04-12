@@ -19,6 +19,7 @@ export interface StreamDoneEvent {
 export type StreamEvent = StreamChunkEvent | StreamDoneEvent;
 
 export interface TherapistStreamOptions {
+  userName:            string;
   userProfile:         IUserProfile;
   recentMemories:      IMemoryChunk[];
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -62,12 +63,13 @@ export class TherapistService {
    */
   async streamResponse(opts: TherapistStreamOptions): Promise<void> {
     const {
-      userProfile, recentMemories, conversationHistory,
+      userName, userProfile, recentMemories, conversationHistory,
       currentTranscript, currentEmotion, visionContext,
       sessionNumber, onChunk, onStreamComplete, onDone, onError,
     } = opts;
 
     const systemPrompt = buildTherapistSystemPrompt({
+      userName,
       userProfile,
       recentMemories,
       currentEmotion,

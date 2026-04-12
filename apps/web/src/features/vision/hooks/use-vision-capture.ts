@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useSessionStore } from '@/features/session/session.store';
 
-const CAPTURE_INTERVAL_MS = 30_000; // 30 seconds
+const CAPTURE_INTERVAL_MS = 15_000; // 15 seconds
 const CANVAS_WIDTH        = 320;
 const CANVAS_HEIGHT       = 240;
 

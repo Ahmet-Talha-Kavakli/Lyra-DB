@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useSessionStore } from '../session.store';
@@ -35,6 +35,8 @@ interface SessionViewProps {
 
 export function SessionView({ roomName }: SessionViewProps) {
   const { userId } = useAuth();
+  const { user } = useUser();
+  const userName = user?.firstName ?? user?.username ?? 'there';
 
   const phase               = useSessionStore((s) => s.phase);
   const sessionId           = useSessionStore((s) => s.sessionId);
@@ -74,6 +76,7 @@ export function SessionView({ roomName }: SessionViewProps) {
     if (!sessionId || !userId) return;
     sendMessage({
       clerkUserId:         userId,
+      userName,
       sessionId,
       transcript,
       emotion:             {
@@ -101,7 +104,7 @@ export function SessionView({ roomName }: SessionViewProps) {
     if (!userId) return;
     connect();
     // Give socket a tick to connect before starting session
-    const id = setTimeout(() => startSession(userId), 300);
+    const id = setTimeout(() => startSession(userId, userName), 300);
     return () => {
       clearTimeout(id);
       disconnect();

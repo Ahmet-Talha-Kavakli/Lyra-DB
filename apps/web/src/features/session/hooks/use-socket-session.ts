@@ -10,6 +10,7 @@ const SOCKET_URL =
 
 interface SendMessagePayload {
   clerkUserId:         string;
+  userName:            string;
   sessionId:           string;
   transcript:          string;
   emotion?:            IEmotionSnapshot | null;
@@ -91,8 +92,8 @@ export function useSocketSession() {
   }, [setPhase, setSessionId, appendAiChunk, flushAiResponse, setAvatarSpeaking, setAvatarAudioSrc, setLastCrisisScore]);
 
   // ── Session lifecycle ─────────────────────────────────────────────────────
-  const startSession = useCallback((clerkUserId: string) => {
-    socketRef.current?.emit('session:start', { clerkUserId });
+  const startSession = useCallback((clerkUserId: string, userName: string) => {
+    socketRef.current?.emit('session:start', { clerkUserId, userName });
   }, []);
 
   const sendMessage = useCallback((payload: SendMessagePayload) => {

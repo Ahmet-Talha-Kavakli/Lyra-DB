@@ -14,9 +14,10 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  Music2,
 } from 'lucide-react';
-import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useSidebarStore } from '../store/sidebar-store';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: Home,          label: 'Ana Sayfa' },
@@ -24,13 +25,14 @@ const NAV_ITEMS = [
   { href: '/journal',   icon: BookOpen,      label: 'Günlük' },
   { href: '/mood',      icon: SmilePlus,     label: 'Duygu Takibi' },
   { href: '/history',   icon: ClipboardList, label: 'Geçmiş' },
-  { href: '/breathe',   icon: Wind,          label: 'Nefes' },
-  { href: '/goals',     icon: Target,        label: 'Hedefler' },
+  { href: '/breathe',    icon: Wind,          label: 'Nefes' },
+  { href: '/meditation', icon: Music2,        label: 'Meditasyon' },
+  { href: '/goals',      icon: Target,        label: 'Hedefler' },
   { href: '/profile',   icon: User,          label: 'Profil' },
 ];
 
 export function Sidebar({ locale }: { locale: string }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggle } = useSidebarStore();
   const pathname = usePathname();
   const { user } = useUser();
   const prefix = locale === 'tr' ? '/tr' : '';
@@ -127,7 +129,7 @@ export function Sidebar({ locale }: { locale: string }) {
           </div>
         )}
         <button
-          onClick={() => setCollapsed((v) => !v)}
+          onClick={toggle}
           className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors mx-auto"
           aria-label={collapsed ? 'Genişlet' : 'Daralt'}
         >

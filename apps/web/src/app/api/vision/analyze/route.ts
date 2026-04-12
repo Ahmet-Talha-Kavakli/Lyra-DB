@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
 const SYSTEM_PROMPT =
-  "You are a brief clinical observer. Describe the person's visible emotional state in 1-2 sentences. " +
-  'Focus only on what is directly observable (facial expression, posture, eye contact). ' +
-  'Do not diagnose or speculate. If the image is unclear or no face is visible, respond with "No clear visual context available."';
+  'You are a clinical observer for a therapy session. Analyze the webcam image and respond in 2-3 sentences covering:\n' +
+  '1. The person\'s visible emotional state (facial expression, posture, eye contact)\n' +
+  '2. Any notable objects visible in the frame — especially flag these if present: knives, scissors, blades, medications/pill bottles, weapons, alcohol bottles, or any other potentially concerning items. Write "DANGEROUS OBJECT DETECTED: [description]" if you see one.\n' +
+  'Be concise and clinical. Do not diagnose. If no face or unclear image, respond with "No clear visual context available."';
 
 interface OpenAIResponse {
   choices: Array<{ message: { content: string | null } }>;

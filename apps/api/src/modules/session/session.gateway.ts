@@ -17,10 +17,12 @@ import type { IUserProfile, IEmotionSnapshot } from '@ai-therapist/types';
 
 interface StartSessionPayload {
   clerkUserId: string;
+  userName:    string;
 }
 
 interface MessagePayload {
   clerkUserId:         string;
+  userName:            string;
   sessionId:           string;
   transcript:          string;
   emotion?:            IEmotionSnapshot | null;
@@ -89,6 +91,46 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     try {
       const sessionId = await this.sessions.startSession(payload.clerkUserId);
       client.emit('session:started', { sessionId });
+
+      // Send personalized AI welcome message immediately
+      const [userProfile, recentMemories, sessionCount] = await Promise.all([
+        this.sessions.getUserProfile(payload.clerkUserId),
+        this.sessions.getRecentMemories(payload.clerkUserId, 8),
+        this.sessions.getSessionCount(payload.clerkUserId),
+      ]);
+
+      let ttsPromise: Promise<string | null> | null = null;
+
+      await this.therapist.streamResponse({
+        userName:            payload.userName || 'there',
+        userProfile:         userProfile ?? { ...FALLBACK_PROFILE, userId: payload.clerkUserId },
+        recentMemories,
+        conversationHistory: [],
+        currentTranscript:   '[SESSION_START] Generate a warm, personalized opening greeting for this session. Greet the user by name. If this is not their first session, reference something specific from the memories provided. Keep it natural and brief — 2-3 sentences max.',
+        currentEmotion:      null,
+        visionContext:       null,
+        sessionNumber:       sessionCount + 1,
+
+        onChunk: (event) => {
+          client.emit('ai:chunk', { text: event.text });
+        },
+
+        onStreamComplete: (fullText) => {
+          ttsPromise = this.tts.synthesise(fullText);
+        },
+
+        onDone: async (event) => {
+          const audioSrc = ttsPromise
+            ? await ttsPromise
+            : await this.tts.synthesise(event.fullText);
+          if (audioSrc) client.emit('ai:audio', { audioSrc, sessionId });
+          client.emit('ai:done', { crisisScore: 0 });
+        },
+
+        onError: (err) => {
+          this.logger.error('welcome message error', err);
+        },
+      });
     } catch (err) {
       this.logger.error('session:start', err);
       client.emit('session:error', { message: 'Failed to start session' });
@@ -100,13 +142,13 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: MessagePayload,
   ) {
-    const { clerkUserId, sessionId, transcript, emotion, visionContext, conversationHistory } = payload;
+    const { clerkUserId, userName, sessionId, transcript, emotion, visionContext, conversationHistory } = payload;
     if (!transcript?.trim()) return;
 
     try {
       const [userProfile, recentMemories, sessionCount] = await Promise.all([
         this.sessions.getUserProfile(clerkUserId),
-        this.sessions.getRecentMemories(clerkUserId, 5),
+        this.sessions.getRecentMemories(clerkUserId, 8),
         this.sessions.getSessionCount(clerkUserId),
       ]);
 
@@ -114,6 +156,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       let ttsPromise: Promise<string | null> | null = null;
 
       await this.therapist.streamResponse({
+        userName:            userName || 'there',
         userProfile:         userProfile ?? { ...FALLBACK_PROFILE, userId: clerkUserId },
         recentMemories,
         conversationHistory,
