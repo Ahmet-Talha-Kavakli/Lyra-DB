@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Headers, UseGuards, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Headers, UseGuards, BadRequestException, NotFoundException } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ClerkAuthGuard } from '../../shared/guards/clerk-auth.guard';
 
@@ -41,6 +41,25 @@ export class UserController {
     if (!profile) throw new NotFoundException('Profile not found');
 
     return profile;
+  }
+
+  /**
+   * PATCH /user/profile
+   * Updates editable therapy preferences (goals, communication style, session length).
+   */
+  @Patch('profile')
+  async updateProfile(
+    @Headers('x-clerk-user-id') clerkId: string,
+    @Body() body: {
+      goals?:              string[];
+      communicationStyle?: string;
+      sessionLength?:      number;
+      emergencyContact?:   { name: string; phone?: string } | null;
+    },
+  ) {
+    if (!clerkId) throw new BadRequestException('Missing user ID');
+    await this.userService.updateProfile(clerkId, body);
+    return { success: true };
   }
 
   /** POST /user/onboarding — saves intake form + consents. */

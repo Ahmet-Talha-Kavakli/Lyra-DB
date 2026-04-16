@@ -58,6 +58,37 @@ export class UserService {
     });
   }
 
+  /** Updates therapy preferences from the profile settings page. */
+  async updateProfile(clerkId: string, data: {
+    goals?:              string[];
+    communicationStyle?: string;
+    sessionLength?:      number;
+    emergencyContact?:   { name: string; phone?: string } | null;
+  }) {
+    const user = await this.prisma.user.findUnique({ where: { clerkId }, select: { id: true } });
+    if (!user) return;
+
+    const existing = await this.prisma.userProfile.findUnique({
+      where:  { userId: user.id },
+      select: { therapyPreferences: true },
+    });
+
+    const prevPrefs = (existing?.therapyPreferences as Record<string, unknown>) ?? {};
+
+    await this.prisma.userProfile.update({
+      where: { userId: user.id },
+      data: {
+        ...(data.goals !== undefined && { goals: data.goals }),
+        therapyPreferences: {
+          ...prevPrefs,
+          ...(data.communicationStyle !== undefined && { communicationStyle: data.communicationStyle }),
+          ...(data.sessionLength       !== undefined && { sessionLength: data.sessionLength }),
+          ...(data.emergencyContact    !== undefined && { emergencyContact: data.emergencyContact }),
+        },
+      },
+    });
+  }
+
   async saveOnboarding(clerkId: string, data: OnboardingData) {
     const user = await this.ensureUserExists(clerkId);
 
