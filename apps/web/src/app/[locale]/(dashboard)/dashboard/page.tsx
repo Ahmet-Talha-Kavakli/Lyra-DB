@@ -73,7 +73,10 @@ export default async function DashboardPage({
   if (!hasProfile) redirect(`${prefix}/onboarding`);
 
   const user      = await currentUser();
-  const firstName = user?.firstName ?? 'there';
+  const firstName = user?.firstName
+    ?? user?.username
+    ?? user?.emailAddresses[0]?.emailAddress?.split('@')[0]
+    ?? 'there';
 
   return (
     <div className="px-8 py-10 max-w-2xl">

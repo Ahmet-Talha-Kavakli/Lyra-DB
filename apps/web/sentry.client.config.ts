@@ -10,8 +10,8 @@ Sentry.init({
   replaysSessionSampleRate: 0.05,
   replaysOnErrorSampleRate: 1.0,
 
-  // Only enable debug mode outside production
-  debug: process.env.NODE_ENV !== 'production',
+  // Keep debug off — tracing logs flood the console and obscure real errors
+  debug: false,
 
   integrations: [
     Sentry.replayIntegration({
