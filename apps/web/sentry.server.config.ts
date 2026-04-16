@@ -5,7 +5,7 @@ Sentry.init({
 
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 
-  debug: process.env.NODE_ENV !== 'production',
+  debug: false,
 
   // Don't capture full request bodies — may contain PHI
   sendDefaultPii: false,

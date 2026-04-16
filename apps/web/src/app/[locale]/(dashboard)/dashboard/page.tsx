@@ -75,7 +75,8 @@ export default async function DashboardPage({
   const user      = await currentUser();
   const firstName = user?.firstName
     ?? user?.username
-    ?? user?.emailAddresses[0]?.emailAddress?.split('@')[0]
+    ?? user?.primaryEmailAddress?.emailAddress?.split('@')[0]
+    ?? user?.emailAddresses?.[0]?.emailAddress?.split('@')[0]
     ?? 'there';
 
   return (
