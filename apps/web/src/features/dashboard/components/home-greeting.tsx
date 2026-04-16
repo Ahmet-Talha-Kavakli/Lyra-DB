@@ -1,12 +1,12 @@
 'use client';
 
 export function HomeGreeting({ name }: { name: string }) {
-  const hour = new Date().getHours();
+  const hour     = new Date().getHours();
   const greeting =
-    hour < 6  ? 'İyi geceler' :
-    hour < 12 ? 'Günaydın' :
-    hour < 17 ? 'İyi günler' :
-    hour < 21 ? 'İyi akşamlar' : 'İyi geceler';
+    hour < 5  ? 'Good night' :
+    hour < 12 ? 'Good morning' :
+    hour < 17 ? 'Good afternoon' :
+    hour < 21 ? 'Good evening' : 'Good night';
 
   return (
     <div>
@@ -16,7 +16,7 @@ export function HomeGreeting({ name }: { name: string }) {
           {name}
         </span>
       </h1>
-      <p className="mt-2 text-gray-500">Bugün nasıl hissediyorsun?</p>
+      <p className="mt-2 text-sm text-gray-500">How are you feeling today?</p>
     </div>
   );
 }
