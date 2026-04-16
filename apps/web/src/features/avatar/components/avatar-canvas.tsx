@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import {
   Environment,
@@ -24,13 +25,32 @@ import { AvatarModel } from './avatar-model';
  * SSR is disabled at the import site (dynamic import with ssr:false).
  */
 export function AvatarCanvas() {
+  const [canvasKey, setCanvasKey] = useState(0);
+
+  // Remount the entire Canvas when WebGL context is lost — this recovers the scene
+  // Context loss happens when GPU memory is under pressure (common with MediaPipe + Three.js)
+  const handleContextLost = useCallback((event: Event) => {
+    event.preventDefault(); // prevent browser from tearing down context
+    console.warn('[AvatarCanvas] WebGL context lost — remounting in 1s');
+    setTimeout(() => setCanvasKey((k) => k + 1), 1000);
+  }, []);
+
   return (
     <div className="h-full w-full" aria-label="AI therapist avatar">
       <Canvas
+        key={canvasKey}
         shadows
-        gl={{ antialias: true, alpha: true }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'low-power', // reduces GPU memory pressure alongside MediaPipe
+          failIfMajorPerformanceCaveat: false,
+        }}
         style={{ background: 'transparent' }}
-        dpr={[1, 2]} // cap pixel ratio at 2× — no need to push > retina
+        dpr={[1, 1.5]} // lower max DPR to reduce GPU memory pressure
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+        }}
       >
         {/* Camera — head-and-shoulders portrait framing */}
         <PerspectiveCamera makeDefault position={[0, 0.5, 2.2]} fov={42} />

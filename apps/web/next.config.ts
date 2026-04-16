@@ -42,6 +42,12 @@ const nextConfig: NextConfig = {
         source: '/nest-api/:path*',
         destination: `${apiUrl}/:path*`,
       },
+      // PWA manifest — browsers request /[locale]/manifest.json when on a locale-prefixed path
+      // Redirect to the root manifest so the service worker scope is always /
+      {
+        source: '/:locale/manifest.json',
+        destination: '/manifest.json',
+      },
     ];
   },
 };

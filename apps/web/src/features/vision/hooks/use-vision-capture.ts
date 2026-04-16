@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useSessionStore } from '@/features/session/session.store';
 
-const CAPTURE_INTERVAL_MS = 15_000; // 15 seconds
+const CAPTURE_INTERVAL_MS = 8_000; // 8 seconds — frequent enough to catch held objects
 const CANVAS_WIDTH        = 640;
 const CANVAS_HEIGHT       = 480;
 

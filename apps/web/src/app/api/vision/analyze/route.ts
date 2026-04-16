@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
 const SYSTEM_PROMPT =
-  'You are a clinical observer for a therapy session. Analyze the webcam image and respond in 2-3 sentences covering:\n' +
-  '1. The person\'s visible emotional state (facial expression, posture, eye contact)\n' +
-  '2. Any notable objects visible in the frame — especially flag these if present: knives, scissors, blades, medications/pill bottles, weapons, alcohol bottles, or any other potentially concerning items. Write "DANGEROUS OBJECT DETECTED: [description]" if you see one.\n' +
-  'Be concise and clinical. Do not diagnose. If no face or unclear image, respond with "No clear visual context available."';
+  'You are a clinical observer for a therapy session. Analyze this webcam image and respond in 2-3 short sentences covering ALL of the following in order of priority:\n\n' +
+  '1. HANDS & OBJECTS FIRST: Describe exactly what the person is holding or touching. Be specific — e.g. "holding a white ceramic mug", "touching their face", "hands on keyboard", "holding a phone". If hands are not visible, say so.\n' +
+  '2. ENVIRONMENT: One-sentence description of the visible setting (room type, lighting, background).\n' +
+  '3. EMOTIONAL STATE: Visible emotional cues — facial expression, posture, eye contact.\n' +
+  '4. SAFETY FLAG: If you see any of these, write "DANGEROUS OBJECT DETECTED: [exact description]" — knives, scissors, blades, medications/pill bottles, weapons, alcohol bottles, or any item that could be used for self-harm.\n\n' +
+  'Be specific and factual. Do not infer or diagnose. If image is too dark/blurry or no person is visible, respond with "No clear visual context available."';
 
 interface OpenAIResponse {
   choices: Array<{ message: { content: string | null } }>;
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 120,
+        max_tokens: 200,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           {
