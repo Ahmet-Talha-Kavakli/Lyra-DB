@@ -29,6 +29,15 @@ interface UseSpeechRecognitionOptions {
   lang?: string;
 }
 
+/** Errors where retrying is pointless — user must act (grant mic permission, etc.) */
+const FATAL_STT_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-capture']);
+
+/** Max consecutive auto-restarts before giving up */
+const MAX_STT_RETRIES = 4;
+
+/** Backoff delays in ms for each retry attempt */
+const RETRY_DELAYS = [200, 600, 1500, 3000];
+
 export function useSpeechRecognition({
   onFinalTranscript,
   lang = 'en-US',
@@ -45,6 +54,10 @@ export function useSpeechRecognition({
   const setTranscriptRef         = useRef(setTranscript);
   // Prevents onend from auto-restarting when stop() is called intentionally
   const intentionalStopRef       = useRef(false);
+  // Consecutive restart counter — resets to 0 on successful result
+  const retryCountRef            = useRef(0);
+  // Flag set when a fatal STT error occurs — prevents any restart attempt
+  const fatalErrorRef            = useRef(false);
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
@@ -69,6 +82,9 @@ export function useSpeechRecognition({
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      // Successful result — reset retry counter
+      retryCountRef.current = 0;
+
       let interim = '';
       let final   = '';
 
@@ -90,8 +106,15 @@ export function useSpeechRecognition({
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (FATAL_STT_ERRORS.has(event.error)) {
+        // Fatal — mic permission denied or hardware unavailable, don't retry
+        fatalErrorRef.current = true;
+        console.error('[STT] Fatal error, microphone unavailable:', event.error);
+        return;
+      }
+      // non-fatal: no-speech / aborted / network — let onend handle restart
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        console.warn('[STT] error:', event.error);
+        console.warn('[STT] transient error:', event.error);
       }
     };
 
@@ -99,9 +122,27 @@ export function useSpeechRecognition({
       activeRef.current = false;
       const wasIntentional = intentionalStopRef.current;
       intentionalStopRef.current = false;
-      if (!wasIntentional && phaseRef.current === 'active' && !mutedRef.current) {
-        setTimeout(() => start(), 200);
+
+      const shouldRestart =
+        !wasIntentional &&
+        !fatalErrorRef.current &&
+        phaseRef.current === 'active' &&
+        !mutedRef.current;
+
+      if (!shouldRestart) {
+        // Intentional stop or fatal error — reset retry counter
+        if (!fatalErrorRef.current) retryCountRef.current = 0;
+        return;
       }
+
+      if (retryCountRef.current >= MAX_STT_RETRIES) {
+        console.warn('[STT] Max retries reached — microphone may be unavailable');
+        return;
+      }
+
+      const delay = RETRY_DELAYS[retryCountRef.current] ?? 3000;
+      retryCountRef.current += 1;
+      setTimeout(() => start(), delay);
     };
 
     recognition.start();
@@ -118,6 +159,9 @@ export function useSpeechRecognition({
   // Restart when phase, muted, or lang changes
   useEffect(() => {
     if (phase === 'active' && !muted) {
+      // Reset retry state whenever we intentionally (re)start
+      fatalErrorRef.current = false;
+      retryCountRef.current = 0;
       start();
     } else {
       stop();

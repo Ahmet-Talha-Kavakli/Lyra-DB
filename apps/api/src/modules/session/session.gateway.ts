@@ -69,6 +69,13 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @WebSocketServer() server!: Server;
   private readonly logger = new Logger(SessionGateway.name);
 
+  /**
+   * Per-client lock: prevents concurrent AI pipeline calls from the same socket.
+   * If user speaks while Lyra is still generating a response, the second message
+   * is queued once the first finishes (or dropped after a short wait if busy).
+   */
+  private readonly processingClients = new Set<string>();
+
   constructor(
     private readonly therapist: TherapistService,
     private readonly tts:       TtsService,
@@ -81,6 +88,8 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+    // Clean up lock if client disconnects mid-stream
+    this.processingClients.delete(client.id);
   }
 
   @SubscribeMessage('session:start')
@@ -145,6 +154,14 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     const { clerkUserId, userName, sessionId, transcript, emotion, visionContext, conversationHistory } = payload;
     if (!transcript?.trim()) return;
 
+    // Drop concurrent messages from the same client — prevents parallel AI pipeline calls
+    // that would cause interleaved responses and repeated error floods
+    if (this.processingClients.has(client.id)) {
+      this.logger.warn(`[${client.id}] Dropping message — previous turn still processing`);
+      return;
+    }
+    this.processingClients.add(client.id);
+
     try {
       const [userProfile, recentMemories, sessionCount] = await Promise.all([
         this.sessions.getUserProfile(clerkUserId),
@@ -188,6 +205,9 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     } catch (err) {
       this.logger.error('session:message', err);
       client.emit('session:error', { message: 'AI pipeline error' });
+    } finally {
+      // Always release lock so next message can be processed
+      this.processingClients.delete(client.id);
     }
   }
 

@@ -46,8 +46,13 @@ export function useSocketSession() {
     if (socketRef.current?.connected) return;
 
     const socket = io(`${SOCKET_URL}/session`, {
-      transports: ['websocket'],
-      autoConnect: true,
+      transports:          ['websocket', 'polling'], // polling fallback prevents hard disconnect
+      autoConnect:         true,
+      reconnection:        true,
+      reconnectionAttempts: 5,
+      reconnectionDelay:   1000,
+      reconnectionDelayMax: 5000,
+      timeout:             10_000,
     });
 
     socketRef.current = socket;
@@ -56,8 +61,17 @@ export function useSocketSession() {
       setPhase('connecting');
     });
 
-    socket.on('disconnect', () => {
-      setPhase('ended');
+    socket.on('disconnect', (reason) => {
+      // Transport-level disconnect (server restart, network blip) — only end the
+      // session if the server explicitly told us to (i/o server disconnect).
+      // Transient disconnects (transport close, ping timeout) let Socket.IO reconnect.
+      if (reason === 'io server disconnect') {
+        setPhase('ended');
+      }
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('[Socket] connect error:', err.message);
     });
 
     socket.on('session:started', (data: { sessionId: string }) => {
