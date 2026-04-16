@@ -141,9 +141,14 @@ export function SessionView({ roomName }: SessionViewProps) {
     [sessionId, userId, userName, currentEmotion, emotionScore, visionContext, conversationHistory, sendMessage],
   );
 
-  // Auto-detect language from last AI response (Turkish chars → tr-TR)
-  const lastAiContent = conversationHistory.filter((m) => m.role === 'assistant').at(-1)?.content ?? '';
-  const sttLang       = /[ğüöçışĞÜÖÇİŞ]/.test(lastAiContent) ? 'tr-TR' : 'en-US';
+  // Detect session language:
+  // 1. If ANY user message contains "speak turkish" / "türkçe" → switch to tr-TR
+  // 2. Else if last AI response contains Turkish chars → tr-TR (already switched)
+  // 3. Default → en-US
+  const lastAiContent  = conversationHistory.filter((m) => m.role === 'assistant').at(-1)?.content ?? '';
+  const allUserContent = conversationHistory.filter((m) => m.role === 'user').map((m) => m.content).join(' ');
+  const userRequestedTurkish = /speak\s+turkish|türkçe\s+konuş|türkçe|switch\s+to\s+turkish/i.test(allUserContent);
+  const sttLang = (userRequestedTurkish || /[ğüöçışĞÜÖÇİŞ]/.test(lastAiContent)) ? 'tr-TR' : 'en-US';
 
   const { muted, setMuted } = useSpeechRecognition({ onFinalTranscript: handleFinalTranscript, lang: sttLang });
   const setMutedRef = useRef(setMuted);

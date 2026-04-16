@@ -11,7 +11,7 @@
 
 let _context: AudioContext | null = null;
 let _analyser: AnalyserNode | null = null;
-let _data: Uint8Array | null = null;
+let _data: Uint8Array<ArrayBuffer> | null = null;
 let _prevSource: MediaElementAudioSourceNode | null = null;
 
 function ensureContext(): boolean {
@@ -23,7 +23,7 @@ function ensureContext(): boolean {
     _analyser.fftSize = 256;
     _analyser.smoothingTimeConstant = 0.72;
     _analyser.connect(_context.destination);
-    _data = new Uint8Array(_analyser.frequencyBinCount);
+    _data = new Uint8Array(_analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     return true;
   } catch {
     return false; // Web Audio unavailable — lip sync degrades gracefully

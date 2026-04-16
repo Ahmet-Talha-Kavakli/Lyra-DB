@@ -7,6 +7,7 @@ import {
   ContactShadows,
   PerspectiveCamera,
 } from '@react-three/drei';
+import * as THREE from 'three';
 import { AvatarScene } from './avatar-scene';
 import { AvatarModel } from './avatar-model';
 
@@ -49,6 +50,8 @@ export function AvatarCanvas() {
         style={{ background: 'transparent' }}
         dpr={[1, 1.5]} // lower max DPR to reduce GPU memory pressure
         onCreated={({ gl }) => {
+          // Suppress PCFSoftShadowMap deprecation spam (Three.js r165+)
+          gl.shadowMap.type = THREE.PCFShadowMap;
           gl.domElement.addEventListener('webglcontextlost', handleContextLost, false);
         }}
       >
