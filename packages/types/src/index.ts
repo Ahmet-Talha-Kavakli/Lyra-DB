@@ -86,7 +86,7 @@ export interface IEmotionSnapshot {
 // ─── Crisis ────────────────────────────────────────────────────────────────
 
 export type TCrisisType = 'self_harm' | 'dangerous_object' | 'aggression' | 'verbal';
-export type TCrisisSeverity = 'low' | 'medium' | 'high' | 'imminent';
+export type TCrisisSeverity = 'low' | 'moderate' | 'medium' | 'high' | 'imminent';
 
 export interface ICrisisSignal {
   type: TCrisisType;

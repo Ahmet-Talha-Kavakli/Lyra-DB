@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 80,
+        max_tokens: 120,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
             content: [
               {
                 type: 'image_url',
-                image_url: { url: imageDataUrl, detail: 'low' },
+                image_url: { url: imageDataUrl, detail: 'auto' },
               },
             ],
           },

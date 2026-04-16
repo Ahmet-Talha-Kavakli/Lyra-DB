@@ -25,11 +25,9 @@ const BATCH_INTERVAL_MS = 2_000;
 
 async function initLandmarker(): Promise<FaceLandmarker> {
   const vision = await FilesetResolver.forVisionTasks(WASM_CDN);
+  // CPU only — GPU delegate conflicts with Three.js and causes WebGL context loss
   return FaceLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: FACE_MODEL_URL,
-      delegate: 'GPU',
-    },
+    baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'CPU' },
     runningMode: 'VIDEO',
     numFaces: 1,
     minFaceDetectionConfidence: 0.5,
@@ -96,7 +94,12 @@ export function useMediaPipe(camera: CameraControls) {
       lastDetectRef.current = timestamp;
 
       // detectForVideo requires a monotonically increasing timestamp in ms
-      const result = landmarkerRef.current.detectForVideo(video, Date.now());
+      let result;
+      try {
+        result = landmarkerRef.current.detectForVideo(video, Date.now());
+      } catch {
+        return; // Detection errors are non-fatal — skip this frame
+      }
 
       const blendshapes = result.faceBlendshapes?.[0];
       if (!blendshapes) return;

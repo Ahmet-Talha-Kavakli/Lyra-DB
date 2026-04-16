@@ -2,56 +2,58 @@
 
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import { useSessionStore } from '../../session/session.store';
 import type { MorphControls } from './use-morph-targets';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-/** Oscillation frequency of the jaw while speaking (cycles/second).
- *  ~6–8 Hz matches natural conversational jaw movement rate. */
-const SPEAK_FREQ      = 7;
-
-/** Peak mouth-open value while speaking (0–1).
- *  0.35 is natural — not a wide-open shout, just relaxed speech. */
-const SPEAK_AMPLITUDE = 0.35;
-
-/** How fast amplitude fades in/out when speaking starts/stops.
- *  Higher = snappier transition. 8 gives ~125 ms fade time. */
-const LERP_SPEED      = 8;
-
-/** Below this amplitude threshold we clamp to 0 to avoid micro-jitter. */
-const DEAD_ZONE       = 0.005;
-
 /**
- * Animates the avatar's jaw (Mouth_Open) while the AI is speaking.
+ * Adds natural body-language cues while Lyra is speaking:
+ *   - Subtle head nods (rotation.x oscillation at ~0.4 Hz)
+ *   - Slight forward presence (position.z lean)
  *
- * Uses a sine wave oscillation gated by `isAvatarSpeaking` from the session
- * store. Amplitude lerps smoothly in/out so there are no abrupt mouth snaps.
+ * Mouth morphs (mouthOpen, mouthFunnel, mouthStretch) are now fully
+ * driven by useAvatarLipSync from real audio FFT analysis.
  *
- * Reads store state via `useSessionStore.getState()` (transient, no re-render)
- * — safe to call every frame without causing React re-renders.
+ * This hook runs AFTER useAvatarIdle, so it adds to idle's rotation
+ * values rather than replacing them.
  */
-export function useAvatarSpeaking(morphs: MorphControls) {
-  const { setMorph } = morphs;
 
-  const speakTimeRef  = useRef(0);   // drives the sine oscillation
-  const ampRef        = useRef(0);   // current (lerped) amplitude
+const NOD_FREQ     = 0.40;  // Hz — slow, natural conversational nod
+const NOD_AMP      = 0.012; // radians — subtle but perceptible
+const LEAN_TARGET  = 0.04;  // units — slight forward presence when speaking
+const LERP_SPEED   = 5;
+
+export function useAvatarSpeaking(
+  groupRef: React.RefObject<THREE.Group | null>,
+  _morphs: MorphControls,
+) {
+  const speakTimeRef = useRef(0);
+  const nodRef       = useRef(0);
+  const leanRef      = useRef(0);
 
   useFrame((_state, delta) => {
-    const isSpeaking    = useSessionStore.getState().isAvatarSpeaking;
-    const targetAmp     = isSpeaking ? SPEAK_AMPLITUDE : 0;
+    if (!groupRef.current) return;
 
-    // Smoothly lerp amplitude toward target
-    ampRef.current += (targetAmp - ampRef.current) * Math.min(1, LERP_SPEED * delta);
+    const isSpeaking = useSessionStore.getState().isAvatarSpeaking;
+    const t          = Math.min(1, LERP_SPEED * delta);
 
-    if (ampRef.current > DEAD_ZONE) {
+    if (isSpeaking) {
       speakTimeRef.current += delta;
-      // |sin| keeps jaw always moving downward then returning — no negative values
-      const jaw = Math.abs(Math.sin(speakTimeRef.current * SPEAK_FREQ)) * ampRef.current;
-      setMorph('mouthOpen', jaw);
+
+      // Slow sinusoidal head nod — like nodding while explaining
+      const targetNod = Math.sin(speakTimeRef.current * NOD_FREQ * Math.PI * 2) * NOD_AMP;
+      nodRef.current  += (targetNod - nodRef.current)  * Math.min(1, 12 * delta);
+
+      // Slight forward lean (lean in while engaged)
+      leanRef.current += (LEAN_TARGET - leanRef.current) * t;
     } else {
-      // Fully closed — reset oscillator phase so next speech starts cleanly
       speakTimeRef.current = 0;
-      setMorph('mouthOpen', 0);
+      nodRef.current  += (0 - nodRef.current)  * t;
+      leanRef.current += (0 - leanRef.current) * t;
     }
+
+    // Additive on top of idle rotation (idle sets base, we add offset)
+    groupRef.current.rotation.x += nodRef.current;
+    groupRef.current.position.z  = leanRef.current;
   });
 }

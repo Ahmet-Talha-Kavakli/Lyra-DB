@@ -15,7 +15,9 @@ const LERP_SPEED = 2.0;
 const EXCLUDED_KEYS = new Set<TBlendShapeKey>([
   'eyeBlinkL',
   'eyeBlinkR',
-  'mouthOpen', // speaking hook owns this
+  'mouthOpen',    // lip sync hook owns these
+  'mouthFunnel',
+  'mouthStretch',
 ]);
 
 const ALL_EMOTION_KEYS = (Object.keys(BLEND_SHAPES) as TBlendShapeKey[]).filter(

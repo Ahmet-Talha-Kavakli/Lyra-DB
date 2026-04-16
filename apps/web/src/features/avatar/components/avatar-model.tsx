@@ -7,6 +7,7 @@ import { useMorphTargets } from '../hooks/use-morph-targets';
 import { useAvatarIdle } from '../hooks/use-avatar-idle';
 import { useAvatarSpeaking } from '../hooks/use-avatar-speaking';
 import { useAvatarEmotion } from '../hooks/use-avatar-emotion';
+import { useAvatarLipSync } from '../hooks/use-avatar-lip-sync';
 
 /**
  * Path to the Reallusion GLB inside /public.
@@ -44,9 +45,15 @@ export function AvatarModel() {
     morphs.invalidateCache();
   }, [gltf.scene]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Hook execution order is intentional:
+  //  1. useAvatarIdle    — sets base rotation, breathing, blink
+  //  2. useAvatarSpeaking — adds nod + lean on top of idle rotation
+  //  3. useAvatarEmotion  — sets non-mouth facial morphs
+  //  4. useAvatarLipSync  — drives mouth morphs from real audio FFT
   useAvatarIdle(groupRef, morphs);
-  useAvatarSpeaking(morphs);
+  useAvatarSpeaking(groupRef, morphs);
   useAvatarEmotion(morphs);
+  useAvatarLipSync(morphs);
 
   return (
     /**

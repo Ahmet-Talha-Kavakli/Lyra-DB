@@ -82,6 +82,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     set({
       aiResponseChunks: [],
+      transcript: '',
       conversationHistory: [
         ...conversationHistory,
         { role: 'user', content: transcript },

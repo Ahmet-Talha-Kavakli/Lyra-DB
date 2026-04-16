@@ -4,8 +4,8 @@ import { useEffect, useRef } from 'react';
 import { useSessionStore } from '@/features/session/session.store';
 
 const CAPTURE_INTERVAL_MS = 15_000; // 15 seconds
-const CANVAS_WIDTH        = 320;
-const CANVAS_HEIGHT       = 240;
+const CANVAS_WIDTH        = 640;
+const CANVAS_HEIGHT       = 480;
 
 /**
  * Periodically captures a webcam frame every 30 s, sends it to
@@ -43,7 +43,7 @@ export function useVisionCapture(videoRef: React.RefObject<HTMLVideoElement | nu
       if (!ctx) return;
 
       ctx.drawImage(video, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
       try {
         const res = await fetch('/api/vision/analyze', {

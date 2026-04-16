@@ -4,8 +4,13 @@ import { useEffect, useRef } from 'react';
 import { useSessionStore } from '../session.store';
 import type { ICrisisSignal, TEmotionLabel } from '@ai-therapist/types';
 
-/** Crisis score threshold — ≥ this value triggers the overlay. */
-const SCORE_THRESHOLD = 7;
+/**
+ * Crisis score thresholds — graduated response:
+ *   5–6  → severity 'moderate'  (soft bottom banner)
+ *   7–8  → severity 'high'      (side panel)
+ *   9–10 → severity 'imminent'  (full overlay)
+ */
+const SCORE_THRESHOLD = 5;
 
 /** How many consecutive high-distress emotion frames triggers crisis. */
 const DISTRESS_FRAME_THRESHOLD = 15; // ~30s at 2s per batch
@@ -50,11 +55,11 @@ export function useCrisisDetector({
     if (activeCrisis || crisisScore < SCORE_THRESHOLD) return;
 
     const signal: ICrisisSignal = {
-      type:        'verbal',
-      severity:    crisisScore >= 9 ? 'imminent' : 'high',
-      confidence:  crisisScore / 10,
-      detectedAt:  Date.now(),
-      description: 'AI detected high-risk language in session transcript.',
+      type:       'verbal',
+      severity:   crisisScore >= 9 ? 'imminent' : crisisScore >= 7 ? 'high' : 'moderate',
+      confidence: crisisScore / 10,
+      detectedAt: Date.now(),
+      description: 'AI detected elevated distress in session transcript.',
     };
 
     lastCrisisSource.current = 'ai_score';

@@ -44,11 +44,10 @@ export class TtsService {
 
     try {
       const response = await this.openai.audio.speech.create({
-        model: 'tts-1',
-        voice: 'nova',      // warm, empathetic female voice — suits therapy context
+        model: 'tts-1-hd',
+        voice: 'shimmer',   // natural female voice, handles Turkish well
         input,
         response_format: 'mp3',
-        speed: 0.95,        // slightly slower than default — more calming
       });
 
       const arrayBuffer = await response.arrayBuffer();
