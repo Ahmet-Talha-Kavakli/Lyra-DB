@@ -108,7 +108,9 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
         this.sessions.getSessionCount(payload.clerkUserId),
       ]);
 
-      let ttsPromise: Promise<string | null> | null = null;
+      // Sentence-level TTS for welcome message too
+      let welcomeBuffer = '';
+      const welcomeTtsQueue: Promise<string | null>[] = [];
 
       await this.therapist.streamResponse({
         userName:            payload.userName || 'there',
@@ -122,17 +124,27 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
         onChunk: (event) => {
           client.emit('ai:chunk', { text: event.text });
+          welcomeBuffer += event.text;
+          let extracted = this.extractSentence(welcomeBuffer);
+          while (extracted) {
+            welcomeTtsQueue.push(this.tts.synthesise(extracted.sentence));
+            welcomeBuffer = extracted.rest;
+            extracted = this.extractSentence(welcomeBuffer);
+          }
         },
 
-        onStreamComplete: (fullText) => {
-          ttsPromise = this.tts.synthesise(fullText);
+        onStreamComplete: () => {
+          if (welcomeBuffer.trim()) {
+            welcomeTtsQueue.push(this.tts.synthesise(welcomeBuffer.trim()));
+            welcomeBuffer = '';
+          }
         },
 
-        onDone: async (event) => {
-          const audioSrc = ttsPromise
-            ? await ttsPromise
-            : await this.tts.synthesise(event.fullText);
-          if (audioSrc) client.emit('ai:audio', { audioSrc, sessionId });
+        onDone: async () => {
+          for (const ttsPromise of welcomeTtsQueue) {
+            const audioSrc = await ttsPromise;
+            if (audioSrc && client.connected) client.emit('ai:audio', { audioSrc, sessionId });
+          }
           client.emit('ai:done', { crisisScore: 0 });
         },
 
@@ -144,6 +156,18 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       this.logger.error('session:start', err);
       client.emit('session:error', { message: 'Failed to start session' });
     }
+  }
+
+  /**
+   * Splits accumulated text buffer into complete sentences (≥15 chars ending
+   * with . ! ? followed by whitespace or end-of-string). Returns the first
+   * complete sentence and the remaining buffer.
+   */
+  private extractSentence(buf: string): { sentence: string; rest: string } | null {
+    // Need at least 15 chars to avoid splitting on "Dr." "Mr." etc.
+    const match = buf.match(/^(.{15,}?[.!?…])(\s+|$)/s);
+    if (!match) return null;
+    return { sentence: match[1].trim(), rest: buf.slice(match[0].length) };
   }
 
   @SubscribeMessage('session:message')
@@ -169,8 +193,12 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
         this.sessions.getSessionCount(clerkUserId),
       ]);
 
-      // TTS starts as soon as stream closes (in parallel with crisis scoring)
-      let ttsPromise: Promise<string | null> | null = null;
+      // Sentence-level TTS pipeline:
+      // Each complete sentence is sent to TTS immediately as it arrives in the stream.
+      // TTS calls run in parallel — first sentence audio is ready ~1-1.5s after stream starts
+      // instead of 4-5s for the full response.
+      let sentenceBuffer  = '';
+      const ttsQueue: Promise<string | null>[] = [];
 
       await this.therapist.streamResponse({
         userName:            userName || 'there',
@@ -184,17 +212,35 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
         onChunk: (event) => {
           client.emit('ai:chunk', { text: event.text });
+          sentenceBuffer += event.text;
+
+          // Queue TTS for each complete sentence as it arrives
+          let extracted = this.extractSentence(sentenceBuffer);
+          while (extracted) {
+            ttsQueue.push(this.tts.synthesise(extracted.sentence));
+            sentenceBuffer = extracted.rest;
+            extracted = this.extractSentence(sentenceBuffer);
+          }
         },
 
-        onStreamComplete: (fullText) => {
-          ttsPromise = this.tts.synthesise(fullText);
+        onStreamComplete: () => {
+          // Queue TTS for any remaining text (last sentence without terminal punctuation)
+          const remaining = sentenceBuffer.trim();
+          if (remaining) {
+            ttsQueue.push(this.tts.synthesise(remaining));
+            sentenceBuffer = '';
+          }
         },
 
         onDone: async (event) => {
-          const audioSrc = ttsPromise
-            ? await ttsPromise
-            : await this.tts.synthesise(event.fullText);
-          if (audioSrc) client.emit('ai:audio', { audioSrc, sessionId });
+          // Send audio segments in order as each TTS call resolves
+          // Since they started in parallel, later segments often resolve before earlier ones finish playing
+          for (const ttsPromise of ttsQueue) {
+            const audioSrc = await ttsPromise;
+            if (audioSrc && client.connected) {
+              client.emit('ai:audio', { audioSrc, sessionId });
+            }
+          }
           client.emit('ai:done', { crisisScore: event.crisisScore ?? 0 });
         },
 

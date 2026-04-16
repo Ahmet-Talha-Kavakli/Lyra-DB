@@ -55,9 +55,11 @@ export function SessionView({ roomName }: SessionViewProps) {
   const currentEmotion      = useSessionStore((s) => s.currentEmotion);
   const emotionScore        = useSessionStore((s) => s.emotionScore);
   const visionContext       = useSessionStore((s) => s.visionContext);
-  const lastCrisisScore     = useSessionStore((s) => s.lastCrisisScore);
-  const avatarAudioSrc      = useSessionStore((s) => s.avatarAudioSrc);
-  const setAvatarSpeaking   = useSessionStore((s) => s.setAvatarSpeaking);
+  const lastCrisisScore   = useSessionStore((s) => s.lastCrisisScore);
+  const audioQueue        = useSessionStore((s) => s.audioQueue);
+  const setAvatarSpeaking = useSessionStore((s) => s.setAvatarSpeaking);
+  const dequeueAudio      = useSessionStore((s) => s.dequeueAudio);
+  const clearAudioQueue   = useSessionStore((s) => s.clearAudioQueue);
 
   const audioRef       = useRef<HTMLAudioElement | null>(null);
   const sessionStartAt = useRef<number>(0);
@@ -66,48 +68,69 @@ export function SessionView({ roomName }: SessionViewProps) {
 
   useCrisisDetector({ crisisScore: lastCrisisScore });
 
-  // ── TTS audio playback ────────────────────────────────────────────────────
-  // Plays each TTS chunk, mutes STT while speaking, drives lip sync via
-  // Web Audio API, and guarantees mic is unmuted even on error/timeout.
+  // ── TTS audio queue player ─────────────────────────────────────────────────
+  // Plays sentence-level audio segments sequentially as they arrive.
+  // Each segment is enqueued by the socket handler; when one ends the next plays.
+  // Mic stays muted for the entire sequence — unmutes only after the last segment.
   useEffect(() => {
-    if (!avatarAudioSrc) return;
+    const currentSrc = audioQueue[0];
+    if (!currentSrc) return;
 
-    // Stop any current audio
+    // Stop any previous segment
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
 
-    const audio = new Audio(avatarAudioSrc);
+    const audio = new Audio(currentSrc);
     audioRef.current = audio;
 
-    // Wire to Web Audio context so lip sync hook can analyse frequencies
+    // Wire to Web Audio API so the lip-sync FFT analyser sees the audio
     ttsAudio.connect(audio);
 
     setMutedRef.current(true);
     setAvatarSpeaking(true);
 
-    const unmute = () => {
-      setMutedRef.current(false);
-      setAvatarSpeaking(false);
+    const onSegmentEnd = () => {
+      dequeueAudio(); // → triggers re-render → next segment plays (or queue empty)
     };
 
-    audio.addEventListener('ended', unmute);
-    audio.addEventListener('error', unmute);
+    const onError = () => {
+      dequeueAudio();
+    };
 
-    // Safety valve: never stay muted for more than 90 s
-    const safetyTimer = setTimeout(unmute, 90_000);
+    audio.addEventListener('ended', onSegmentEnd);
+    audio.addEventListener('error', onError);
 
-    audio.play().catch(() => unmute());
+    // Safety valve — never stay muted longer than 90 s total
+    const safetyTimer = setTimeout(() => {
+      clearAudioQueue();
+      setMutedRef.current(false);
+      setAvatarSpeaking(false);
+    }, 90_000);
+
+    audio.play().catch(onError);
 
     return () => {
       clearTimeout(safetyTimer);
-      audio.removeEventListener('ended', unmute);
-      audio.removeEventListener('error', unmute);
+      audio.removeEventListener('ended', onSegmentEnd);
+      audio.removeEventListener('error', onError);
       audio.pause();
-      unmute();
     };
-  }, [avatarAudioSrc, setAvatarSpeaking]);
+  }, [audioQueue[0]]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Unmute mic when queue drains completely
+  useEffect(() => {
+    if (audioQueue.length === 0) {
+      setMutedRef.current(false);
+      setAvatarSpeaking(false);
+    }
+  }, [audioQueue.length, setAvatarSpeaking]);
+
+  // Clear audio queue when session ends
+  useEffect(() => {
+    if (phase === 'ended') clearAudioQueue();
+  }, [phase, clearAudioQueue]);
 
   // Track session start time for duration display in summary
   useEffect(() => {

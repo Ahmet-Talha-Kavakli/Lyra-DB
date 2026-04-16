@@ -37,7 +37,7 @@ export function useSocketSession() {
     appendAiChunk,
     flushAiResponse,
     setAvatarSpeaking,
-    setAvatarAudioSrc,
+    enqueueAudio,
     setLastCrisisScore,
   } = useSessionStore();
 
@@ -84,7 +84,8 @@ export function useSocketSession() {
     });
 
     socket.on('ai:audio', (data: { audioSrc: string }) => {
-      setAvatarAudioSrc(data.audioSrc);
+      // Sentence-level audio: enqueue rather than replace so segments play in order
+      enqueueAudio(data.audioSrc);
       setAvatarSpeaking(true);
     });
 
@@ -103,7 +104,7 @@ export function useSocketSession() {
     socket.on('session:error', (data: { message: string }) => {
       console.error('[SocketSession] error:', data.message);
     });
-  }, [setPhase, setSessionId, appendAiChunk, flushAiResponse, setAvatarSpeaking, setAvatarAudioSrc, setLastCrisisScore]);
+  }, [setPhase, setSessionId, appendAiChunk, flushAiResponse, setAvatarSpeaking, enqueueAudio, setLastCrisisScore]);
 
   // ── Session lifecycle ─────────────────────────────────────────────────────
   const startSession = useCallback((clerkUserId: string, userName: string) => {

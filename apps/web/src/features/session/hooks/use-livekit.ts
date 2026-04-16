@@ -31,7 +31,7 @@ export function useLiveKit() {
     appendAiChunk,
     flushAiResponse,
     setAvatarSpeaking,
-    setAvatarAudioSrc,
+    enqueueAudio,
     setLastCrisisScore,
     addDataMessage,
   } = useSessionStore();
@@ -59,7 +59,7 @@ export function useLiveKit() {
             break;
           case 'ai_audio':
             if (msg.audioSrc) {
-              setAvatarAudioSrc(msg.audioSrc);
+              enqueueAudio(msg.audioSrc);
               setAvatarSpeaking(true);
             }
             break;
@@ -77,7 +77,7 @@ export function useLiveKit() {
         // non-JSON data messages are ignored
       }
     },
-    [addDataMessage, setTranscript, appendAiChunk, setAvatarAudioSrc, setAvatarSpeaking, flushAiResponse, setLastCrisisScore],
+    [addDataMessage, setTranscript, appendAiChunk, enqueueAudio, setAvatarSpeaking, flushAiResponse, setLastCrisisScore],
   );
 
   const connect = useCallback(
