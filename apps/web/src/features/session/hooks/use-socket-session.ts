@@ -122,7 +122,16 @@ export function useSocketSession() {
     conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
   ) => {
     socketRef.current?.emit('session:end', { sessionId, userId, conversationHistory });
-  }, []);
+
+    // Safety net: if server never sends session:ended (socket drop, server error),
+    // force-end on the client after 5 seconds so the user isn't stuck on "Ending..."
+    setTimeout(() => {
+      const store = useSessionStore.getState();
+      if (store.phase !== 'ended') {
+        setPhase('ended');
+      }
+    }, 5000);
+  }, [setPhase]);
 
   const disconnect = useCallback(() => {
     socketRef.current?.disconnect();

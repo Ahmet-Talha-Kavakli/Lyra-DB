@@ -24,7 +24,10 @@ model User {
   crisisLogs     CrisisLog[]
   auditLogs      AuditLog[]
   journalEntries JournalEntry[]
+  notebooks      Notebook[]
   moodLogs       MoodLog[]
+  cycleProfile   CycleProfile?
+  periodLogs     PeriodLog[]
 
   @@map("users")
 }
@@ -148,16 +151,49 @@ model AuditLog {
 }
 
 model JournalEntry {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  entryDate DateTime @map("entry_date") @db.Date
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  notebookId String   @map("notebook_id") @db.Uuid
+  entryDate  DateTime @map("entry_date") @db.Date
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, entryDate])
+  @@unique([notebookId, entryDate])
+  @@index([userId, entryDate])
   @@map("journal_entries")
+}
+
+/// Notebook = kullanıcının kitaplığındaki bir defter. İki sistem defteri
+/// (standard "Journal", private "Secret") user oluşturulduğunda otomatik
+/// bootstrap edilir; ek olarak en fazla MAX_CUSTOM_NOTEBOOKS (3) custom defter.
+///
+/// notebookType: 'standard' | 'private' | 'custom'
+/// silhouette:   'classic' | 'arched'  | 'pointed' (sırt görseli)
+///
+/// aiAccessible: AI bu defterdeki entries'leri seans bağlamında okuyabilir mi?
+///   - standard: true (Journal)
+///   - private:  false (Secret — şifrelenmiş, AI hiç görmez)
+///   - custom:   kullanıcı seçer
+model Notebook {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  notebookType String         @map("notebook_type") // standard|private|custom
+  name         String
+  themeId      String         @map("theme_id")
+  thicknessId  String         @default("thick") @map("thickness_id")
+  silhouette   String         @default("classic")
+  locked       Boolean        @default(false)
+  aiAccessible Boolean        @default(true) @map("ai_accessible")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries      JournalEntry[]
+
+  @@index([userId, notebookType])
+  @@map("notebooks")
 }
 
 model MoodLog {
@@ -168,4 +204,54 @@ model MoodLog {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mood_logs")
+}
+
+/// Bloom — kullanıcının döngü profili. Onboarding'de doldurulur, profil
+/// ayarlarından güncellenebilir. Bir kullanıcıya bir profil.
+///
+/// aiAccessLevel: Lyra hangi kategorilere erişebilir? Default tüm kategoriler
+///   false (kullanıcı kategori bazında opt-in yapar — journal pattern'ı).
+///   Şekil: { mood: bool, symptoms: bool, sexual: bool, all: bool }
+///   `all=true` tek switch ile tüm kategoriler için kısayol.
+///
+/// stage: kullanıcının şu anki yaşam evresi bayrağı (regular/irregular/
+///   pregnant/postpartum/perimenopause/menopause/ttc/loss/unknown). Sadece
+///   bağlam — UI hiçbir alanı gizlemez.
+model CycleProfile {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @unique @map("user_id") @db.Uuid
+  birthDate        DateTime? @map("birth_date") @db.Date
+  averageCycleDays Int?      @default(28) @map("average_cycle_days")
+  lastPeriodStart  DateTime? @map("last_period_start") @db.Date
+  stage            String    @default("unknown")
+  aiAccessLevel    Json      @default("{}") @map("ai_access_level")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("cycle_profiles")
+}
+
+/// Bloom — günlük log entry. Kanama + payload (serbest JSON, faz 2'de
+/// genişler). Aynı (userId, logDate) için tek entry.
+///
+/// flow: 'none' | 'spotting' | 'light' | 'medium' | 'heavy' | 'very_heavy'
+/// isPeriodStart: Yeni bir döngü başlangıcı mı? `lastPeriodStart` güncellemek
+///   için kullanılır.
+/// payload: { symptoms, mood, energy, sleep, sexual, bbt, ... } — Adım 2.
+model PeriodLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  logDate       DateTime @map("log_date") @db.Date
+  flow          String?
+  isPeriodStart Boolean  @default(false) @map("is_period_start")
+  notes         String?
+  payload       Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@index([userId, logDate])
+  @@map("period_logs")
 }

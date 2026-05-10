@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { buildTherapistSystemPrompt } from '@ai-therapist/ai-core';
-import type { IUserProfile, IMemoryChunk, IEmotionSnapshot } from '@ai-therapist/types';
+import { buildTherapistSystemPrompt, selectFrameworksFast, getFrameworkText, DEFAULT_SELECTION } from '@ai-therapist/ai-core';
+import type { IUserProfile, IMemoryChunk, IEmotionSnapshot, IHomeworkItem } from '@ai-therapist/types';
 
 export interface StreamChunkEvent {
   type: 'chunk';
@@ -27,6 +27,18 @@ export interface TherapistStreamOptions {
   currentEmotion:      IEmotionSnapshot | null;
   visionContext:       string | null;
   sessionNumber:       number;
+  journalEntries?:     Array<{ entryDate: Date | string; content: string }>;
+  pendingHomework?:    IHomeworkItem[];
+  /** Switches Lyra into "warm companion in the journal" mode. */
+  journalChatContext?: {
+    mode:          'shelf' | 'notebook';
+    notebookName?: string;
+    todayDraft?:   string;
+    /** False = user disabled AI access for this notebook; Lyra must not speculate about content. */
+    aiAccessible?: boolean;
+  };
+  /** Skip the crisis-scoring LLM call after the stream completes (journal-chat). */
+  skipCrisisScoring?:  boolean;
   onChunk:            (event: StreamChunkEvent)  => void;
   /** Fires immediately after the stream closes, before crisis scoring. */
   onStreamComplete?:  (fullText: string)          => void;
@@ -48,7 +60,8 @@ export class TherapistService {
 
   constructor(private readonly config: ConfigService) {
     this.openai = new OpenAI({
-      apiKey: this.config.getOrThrow<string>('OPENAI_API_KEY'),
+      apiKey:  this.config.getOrThrow<string>('OPENAI_API_KEY'),
+      timeout: 45_000, // 45s — prevents hanging forever on network issues
     });
   }
 
@@ -65,8 +78,18 @@ export class TherapistService {
     const {
       userName, userProfile, recentMemories, conversationHistory,
       currentTranscript, currentEmotion, visionContext,
-      sessionNumber, onChunk, onStreamComplete, onDone, onError,
+      sessionNumber, journalEntries, pendingHomework,
+      journalChatContext, skipCrisisScoring,
+      onChunk, onStreamComplete, onDone, onError,
     } = opts;
+
+    // Dynamic framework selection — picks 1-2 relevant frameworks instead of all 5
+    const frameworkSelection = selectFrameworksFast({
+      userGoals:           userProfile.goals,
+      currentEmotion:      currentEmotion?.dominant ?? null,
+      userMessage:         currentTranscript,
+      personalitySnapshot: userProfile.personalitySnapshot,
+    }) ?? DEFAULT_SELECTION;
 
     const systemPrompt = buildTherapistSystemPrompt({
       userName,
@@ -75,25 +98,42 @@ export class TherapistService {
       currentEmotion,
       visionContext,
       sessionNumber,
+      selectedFrameworks: getFrameworkText(frameworkSelection),
+      journalEntries,
+      pendingHomework,
+      journalChatContext,
     });
+
+    // Keep last 12 messages to prevent context overflow and slow responses on long sessions
+    const trimmedHistory = conversationHistory.slice(-12);
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
-      ...conversationHistory.map((m) => ({
+      ...trimmedHistory.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
       { role: 'user', content: currentTranscript },
     ];
 
+    // Per-request abort controller — kills the stream after 28s even if data is trickling
+    const abortController = new AbortController();
+    const streamTimeout = setTimeout(() => {
+      this.logger.warn('OpenAI stream timeout after 28s — aborting');
+      abortController.abort();
+    }, 28_000);
+
     try {
-      const stream = await this.openai.chat.completions.create({
-        model:       'gpt-4o-mini',
-        messages,
-        stream:      true,
-        max_tokens:  800,
-        temperature: 0.75,
-      });
+      const stream = await this.openai.chat.completions.create(
+        {
+          model:       'gpt-4o',
+          messages,
+          stream:      true,
+          max_tokens:  600,
+          temperature: 0.75,
+        },
+        { signal: abortController.signal },
+      );
 
       let fullText = '';
 
@@ -108,17 +148,22 @@ export class TherapistService {
       // Notify gateway immediately so it can start TTS in parallel
       onStreamComplete?.(fullText);
 
-      // Fast-path: keyword match skips the LLM scoring call for clear signals
-      const lowerTranscript = currentTranscript.toLowerCase();
-      const keywordHit = CRISIS_KEYWORDS.some((kw) => lowerTranscript.includes(kw));
-      const crisisScore = keywordHit
-        ? 9
-        : await this.scoreCrisisRisk(currentTranscript, fullText);
+      let crisisScore = 0;
+      if (!skipCrisisScoring) {
+        // Fast-path: keyword match skips the LLM scoring call for clear signals
+        const lowerTranscript = currentTranscript.toLowerCase();
+        const keywordHit = CRISIS_KEYWORDS.some((kw) => lowerTranscript.includes(kw));
+        crisisScore = keywordHit
+          ? 9
+          : await this.scoreCrisisRisk(currentTranscript, fullText);
+      }
 
       await onDone({ type: 'done', fullText, crisisScore });
     } catch (err) {
       this.logger.error('OpenAI stream error', err);
       onError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      clearTimeout(streamTimeout);
     }
   }
 

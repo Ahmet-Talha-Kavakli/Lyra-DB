@@ -9,7 +9,10 @@ import { MemoryModule } from './modules/memory/memory.module';
 import { UserModule } from './modules/user/user.module';
 import { InngestModule } from './inngest/inngest.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { JournalChatModule } from './modules/journal-chat/journal-chat.module';
+import { NotebookModule } from './modules/notebook/notebook.module';
 import { MoodModule } from './modules/mood/mood.module';
+import { BloomModule } from './modules/bloom/bloom.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -23,8 +26,11 @@ import { AppController } from './app.controller';
     MemoryModule,
     UserModule,
     InngestModule,
+    NotebookModule,
     JournalModule,
+    JournalChatModule,
     MoodModule,
+    BloomModule,
   ],
 })
 export class AppModule {

@@ -1,0 +1,101 @@
+{
+  "bloom": {
+    "tab": "Bloom",
+    "onboarding": {
+      "title": "Welcome to Bloom",
+      "subtitle": "Your cycle, your body, your rhythm.",
+      "intro": "Lyra never sees your cycle data unless you turn it on. Always your call.",
+      "stepBirth": "When were you born?",
+      "stepBirthHint": "Helps us understand your stage in life — peri-/menopause windows, etc.",
+      "stepLastPeriod": "When did your last period start?",
+      "stepLastPeriodHint": "Best guess is fine. You can change it later.",
+      "stepCycleLength": "Roughly how many days between periods?",
+      "stepCycleLengthHint": "If you don't know, leave 28 — we won't predict until we have more data.",
+      "stepCycleDontKnow": "I don't know",
+      "skipForNow": "Skip for now",
+      "next": "Next",
+      "back": "Back",
+      "save": "Save",
+      "saveError": "Couldn't save. Please try again."
+    },
+    "today": {
+      "loading": "Loading…",
+      "needsOnboarding": "Set up Bloom",
+      "needsOnboardingSub": "Tell us a few things to start tracking.",
+      "dayLabel": "Day {{day}}",
+      "phaseUnknown": "Cycle data not set",
+      "phase": {
+        "menstrual": "Menstrual phase",
+        "follicular": "Follicular phase",
+        "ovulation": "Ovulation",
+        "luteal": "Luteal phase"
+      },
+      "phaseSummary": {
+        "menstrual": "Your period is here. Estrogen and progesterone are at their lowest. Be gentle with yourself.",
+        "follicular": "Estrogen is rising. Energy and mood often lift through this week.",
+        "ovulation": "Estrogen peaks; LH triggers release. Many feel social, focused, more confident.",
+        "luteal": "Progesterone is dominant. Late this phase, mood and energy may dip — this is biology, not failure."
+      },
+      "predictionTitle": "Next period",
+      "predictionRange": "expected {{start}} — {{end}}",
+      "predictionWithheld": {
+        "no-data": "Tell Bloom when your last period started to begin tracking.",
+        "not-enough-data": "I'll start predicting after a few cycles. Honesty over false confidence.",
+        "irregular": "Your cycles seem irregular — I won't guess. Logging helps you see your own patterns."
+      },
+      "quickLog": "Quick log",
+      "quickLogSoon": "Daily logging arrives in the next update.",
+      "edit": "Edit",
+      "markPeriodTodayCta": "Did your period start today?",
+      "markPeriodConfirmTitle": "Mark today as period start?",
+      "markPeriodConfirmBody": "I'll record today as the start of a new cycle. You can undo this later.",
+      "confirm": "Yes",
+      "cancel": "Cancel"
+    },
+    "calendar": {
+      "viewMonth": "View month",
+      "monthTitle": "{{month}} {{year}}",
+      "today": "Today",
+      "done": "Done",
+      "legend": {
+        "period": "Period",
+        "predicted": "Predicted",
+        "fertile": "Fertile",
+        "today": "Today",
+        "menstrual": "Menstrual",
+        "follicular": "Follicular",
+        "ovulation": "Ovulation",
+        "luteal": "Luteal"
+      },
+      "weekdayShort": ["S", "M", "T", "W", "T", "F", "S"],
+      "monthFull": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+      "actions": {
+        "markPeriodStart": "Mark period start",
+        "unmarkPeriodStart": "Unmark period start",
+        "cancel": "Cancel"
+      },
+      "toast": {
+        "marked": "Period start marked",
+        "unmarked": "Period start removed",
+        "undo": "Undo"
+      },
+      "markPeriodToday": "Did your period start today?",
+      "hint": "Tap a day to view · Long-press to mark period start",
+      "hintTap": "Tap a day to view",
+      "hintHold": "Long-press to mark period start"
+    },
+    "stages": {
+      "unknown": "Not specified",
+      "regular": "Regular cycles",
+      "irregular": "Irregular cycles",
+      "pcos": "PCOS",
+      "endo": "Endometriosis",
+      "ttc": "Trying to conceive",
+      "pregnant": "Pregnant",
+      "loss": "Recent loss",
+      "postpartum": "Postpartum",
+      "perimenopause": "Perimenopause",
+      "menopause": "Menopause"
+    }
+  }
+}

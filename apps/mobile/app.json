@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Lyra",
+    "slug": "lyra",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "lyra",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0A1A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lyra.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Lyra needs microphone access for therapy sessions and voice journal entries.",
+        "NSSpeechRecognitionUsageDescription": "Lyra uses speech recognition to convert your spoken journal entries into text.",
+        "NSCameraUsageDescription": "Lyra uses the camera for emotion detection during sessions."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F0A1A"
+      },
+      "package": "com.lyra.app",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0F0A1A",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-font",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Lyra needs microphone access to record your spoken journal entries.",
+          "speechRecognitionPermission": "Lyra uses speech recognition to convert your voice into journal text.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      },
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

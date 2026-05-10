@@ -1,10 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
-import type { IUserProfile, IMemoryChunk } from '@ai-therapist/types';
+import { MemoryService } from '../memory/memory.service';
+import { JournalService } from '../journal/journal.service';
+import type { IUserProfile, IMemoryChunk, IHomeworkItem } from '@ai-therapist/types';
 
 @Injectable()
 export class SessionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma:   PrismaService,
+    private readonly memory:   MemoryService,
+    private readonly journal:  JournalService,
+  ) {}
 
   /** Resolve a Clerk user ID to the internal DB UUID, creating the user if missing. */
   private async resolveUserId(clerkId: string): Promise<string> {
@@ -117,9 +124,40 @@ export class SessionService {
     return { sessions, total };
   }
 
+  /** Fetch pending homework from the most recent completed session. */
+  async getLastHomework(clerkId: string): Promise<IHomeworkItem[]> {
+    const userId = await this.resolveUserId(clerkId).catch(() => null);
+    if (!userId) return [];
+    const session = await this.prisma.session.findFirst({
+      where:   { userId, status: 'completed', homework: { not: Prisma.JsonNull } },
+      orderBy: { endedAt: 'desc' },
+      select:  { homework: true },
+    });
+    if (!session?.homework) return [];
+    const items = session.homework as unknown as IHomeworkItem[];
+    return items.filter((h) => h.status === 'pending');
+  }
+
+  /** Fetch recent journal entries for session context (Lyra references diary naturally). */
+  async getRecentJournalEntries(clerkId: string, limit = 5) {
+    return this.journal.getRecentEntries(clerkId, limit).catch(() => []);
+  }
+
+  /**
+   * Semantic memory search: embed the user's message, then find the most
+   * relevant memories via pgvector cosine similarity. Falls back to empty
+   * array if the user has no memories or embedding fails.
+   */
+  async getSemanticMemories(clerkId: string, query: string, limit = 5): Promise<IMemoryChunk[]> {
+    const userId = await this.resolveUserId(clerkId).catch(() => null);
+    if (!userId) return [];
+    return this.memory.semanticSearch({ userId, query, limit }).catch(() => []);
+  }
+
   /**
    * Fetch the N most recent memory chunks for context injection.
-   * Ordered by recency — semantic search (pgvector) is done in MemoryModule (Phase 9).
+   * Used at session start (no user message to search against) and as
+   * fallback padding alongside semantic results.
    */
   async getRecentMemories(clerkId: string, limit = 5): Promise<IMemoryChunk[]> {
     const userId = await this.resolveUserId(clerkId).catch(() => null);

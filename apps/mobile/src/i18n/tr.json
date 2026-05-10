@@ -1,0 +1,101 @@
+{
+  "bloom": {
+    "tab": "Bloom",
+    "onboarding": {
+      "title": "Bloom'a hoş geldin",
+      "subtitle": "Döngün, bedenin, ritmin.",
+      "intro": "Sen açmadıkça Lyra döngü verini hiç görmez. Karar her zaman senin.",
+      "stepBirth": "Doğum tarihin?",
+      "stepBirthHint": "Hayatının hangi evresinde olduğunu anlamak için — perimenopoz/menopoz pencereleri vb.",
+      "stepLastPeriod": "Son adetinin başlangıcı?",
+      "stepLastPeriodHint": "Yaklaşık yeter. Sonra değiştirebilirsin.",
+      "stepCycleLength": "Adetlerin arası kaç gün?",
+      "stepCycleLengthHint": "Bilmiyorsan 28 kalsın — yeterli veri olmadan tahmin yapmıyoruz.",
+      "stepCycleDontKnow": "Bilmiyorum",
+      "skipForNow": "Şimdilik geç",
+      "next": "Devam",
+      "back": "Geri",
+      "save": "Kaydet",
+      "saveError": "Kaydedilemedi. Tekrar dener misin?"
+    },
+    "today": {
+      "loading": "Yükleniyor…",
+      "needsOnboarding": "Bloom'u kur",
+      "needsOnboardingSub": "Takibe başlamak için birkaç şey söyle.",
+      "dayLabel": "{{day}}. gün",
+      "phaseUnknown": "Döngü bilgin henüz yok",
+      "phase": {
+        "menstrual": "Adet (menstrual) fazı",
+        "follicular": "Foliküler faz",
+        "ovulation": "Ovulasyon",
+        "luteal": "Luteal faz"
+      },
+      "phaseSummary": {
+        "menstrual": "Adetin başladı. Östrojen ve progesteron en düşük seviyede. Kendine yumuşak ol.",
+        "follicular": "Östrojen yükseliyor. Bu hafta enerji ve mood çoğu zaman daha yukarıda olur.",
+        "ovulation": "Östrojen pikte; LH yumurtlamayı tetikler. Sosyal, odaklı, kendinden emin hissedebilirsin.",
+        "luteal": "Progesteron baskın. Bu fazın sonlarına doğru mood ve enerji düşebilir — bu biyoloji, başarısızlık değil."
+      },
+      "predictionTitle": "Sonraki adet",
+      "predictionRange": "{{start}} — {{end}} arası bekleniyor",
+      "predictionWithheld": {
+        "no-data": "Takibe başlamak için son adetinin tarihini Bloom'a söyle.",
+        "not-enough-data": "Birkaç döngü sonra tahmin etmeye başlayacağım. Yanlış kesinlik yerine dürüstlük.",
+        "irregular": "Döngülerin düzensiz görünüyor — tahmin etmeyeceğim. Logla, kendi pattern'ini sen göreceksin."
+      },
+      "quickLog": "Hızlı logla",
+      "quickLogSoon": "Günlük log özelliği bir sonraki güncellemede.",
+      "edit": "Düzenle",
+      "markPeriodTodayCta": "Bugün adetin mi başladı?",
+      "markPeriodConfirmTitle": "Bugünü adet başlangıcı olarak işaretle?",
+      "markPeriodConfirmBody": "Bugünü yeni döngünün başlangıcı olarak kaydedeceğim. İstediğin zaman geri alabilirsin.",
+      "confirm": "Evet",
+      "cancel": "İptal"
+    },
+    "calendar": {
+      "viewMonth": "Ay görünümü",
+      "monthTitle": "{{month}} {{year}}",
+      "today": "Bugün",
+      "done": "Tamam",
+      "legend": {
+        "period": "Adet",
+        "predicted": "Tahmin",
+        "fertile": "Doğurgan",
+        "today": "Bugün",
+        "menstrual": "Adet",
+        "follicular": "Foliküler",
+        "ovulation": "Ovulasyon",
+        "luteal": "Luteal"
+      },
+      "weekdayShort": ["P", "P", "S", "Ç", "P", "C", "C"],
+      "monthFull": ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"],
+      "actions": {
+        "markPeriodStart": "Adetim başladı",
+        "unmarkPeriodStart": "İşareti kaldır",
+        "cancel": "İptal"
+      },
+      "toast": {
+        "marked": "Adet başlangıcı işaretlendi",
+        "unmarked": "İşaret kaldırıldı",
+        "undo": "Geri al"
+      },
+      "markPeriodToday": "Bugün adetin mi başladı?",
+      "hint": "Bir güne dokun · Adet başlangıcı için basılı tut",
+      "hintTap": "Bir güne dokun",
+      "hintHold": "Adet başlangıcı için basılı tut"
+    },
+    "stages": {
+      "unknown": "Belirtilmedi",
+      "regular": "Düzenli döngü",
+      "irregular": "Düzensiz döngü",
+      "pcos": "PCOS",
+      "endo": "Endometriozis",
+      "ttc": "Hamilelik planlıyor",
+      "pregnant": "Hamile",
+      "loss": "Yakın zamanda kayıp",
+      "postpartum": "Doğum sonrası",
+      "perimenopause": "Perimenopoz",
+      "menopause": "Menopoz"
+    }
+  }
+}

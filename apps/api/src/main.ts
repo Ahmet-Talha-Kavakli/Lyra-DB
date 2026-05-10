@@ -4,7 +4,10 @@ import { AppModule } from './app.module';
 import { GlobalHttpExceptionFilter } from './shared/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody:true → Clerk webhook svix signature verification needs raw bytes
+  // (any JSON re-serialize would break the HMAC). Per-route opt-in via
+  // @Req() req.rawBody.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({
     origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:3000'],

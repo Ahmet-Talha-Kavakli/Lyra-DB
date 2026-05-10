@@ -40,7 +40,6 @@ export function AvatarCanvas() {
     <div className="h-full w-full" aria-label="AI therapist avatar">
       <Canvas
         key={canvasKey}
-        shadows
         gl={{
           antialias: true,
           alpha: true,
@@ -50,8 +49,6 @@ export function AvatarCanvas() {
         style={{ background: 'transparent' }}
         dpr={[1, 1.5]} // lower max DPR to reduce GPU memory pressure
         onCreated={({ gl }) => {
-          // Suppress PCFSoftShadowMap deprecation spam (Three.js r165+)
-          gl.shadowMap.type = THREE.PCFShadowMap;
           gl.domElement.addEventListener('webglcontextlost', handleContextLost, false);
         }}
       >

@@ -36,6 +36,20 @@ export class UserService {
   }
 
   /**
+   * Called from Clerk webhook on `user.deleted` event.
+   * Cascade deletes are configured in Prisma schema (sessions, journal,
+   * notebooks, mood, etc), so a single user delete cleans up everything.
+   */
+  async deleteByClerkId(clerkId: string) {
+    const user = await this.prisma.user.findUnique({
+      where:  { clerkId },
+      select: { id: true },
+    });
+    if (!user) return; // already gone
+    await this.prisma.user.delete({ where: { id: user.id } });
+  }
+
+  /**
    * Returns the user's profile if onboarding has been completed,
    * or null if the profile doesn't exist yet.
    * Used by the dashboard onboarding-check.

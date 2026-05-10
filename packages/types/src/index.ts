@@ -1,3 +1,5 @@
+export * from './bloom';
+
 // ─── User ──────────────────────────────────────────────────────────────────
 
 export interface IUser {
@@ -34,6 +36,32 @@ export interface IUserProfile {
   riskLevel: TRiskLevel;
   disclaimerAcceptedAt: Date | null;
   updatedAt: Date;
+}
+
+// ─── Personality Snapshot ──────────────────────────────────────────────────
+
+export type TFrameworkName = 'cbt' | 'dbt' | 'act' | 'psychodynamic' | 'somatic';
+
+export interface IPersonalitySnapshot {
+  communicationStyle: string | null;
+  recurringThemes:    string[];
+  attachmentPattern:  string | null;
+  copingMechanisms:   string[];
+  progressTrajectory: string | null;
+  effectiveFrameworks: TFrameworkName[];
+  sessionCount:       number;
+  lastUpdated:        string;
+}
+
+// ─── Homework ─────────────────────────────────────────────────────────────
+
+export interface IHomeworkItem {
+  id:          string;
+  description: string;
+  category:    'reflection' | 'behavioral' | 'mindfulness' | 'journaling';
+  status:      'pending' | 'completed' | 'skipped';
+  assignedAt:  string;
+  completedAt?: string;
 }
 
 // ─── Session ───────────────────────────────────────────────────────────────

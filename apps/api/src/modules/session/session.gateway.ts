@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { TherapistService } from '../ai-therapist/therapist.service';
 import { TtsService } from '../ai-therapist/tts.service';
 import { SessionService } from './session.service';
+import { PostSessionService } from './post-session.service';
 import { inngest } from '../../inngest/inngest.client';
 import type { IUserProfile, IEmotionSnapshot } from '@ai-therapist/types';
 
@@ -77,9 +78,10 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   private readonly processingClients = new Set<string>();
 
   constructor(
-    private readonly therapist: TherapistService,
-    private readonly tts:       TtsService,
-    private readonly sessions:  SessionService,
+    private readonly therapist:   TherapistService,
+    private readonly tts:         TtsService,
+    private readonly sessions:    SessionService,
+    private readonly postSession: PostSessionService,
   ) {}
 
   handleConnection(client: Socket) {
@@ -102,10 +104,12 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       client.emit('session:started', { sessionId });
 
       // Send personalized AI welcome message immediately
-      const [userProfile, recentMemories, sessionCount] = await Promise.all([
+      const [userProfile, recentMemories, sessionCount, journalEntries, pendingHomework] = await Promise.all([
         this.sessions.getUserProfile(payload.clerkUserId),
         this.sessions.getRecentMemories(payload.clerkUserId, 8),
         this.sessions.getSessionCount(payload.clerkUserId),
+        this.sessions.getRecentJournalEntries(payload.clerkUserId, 5),
+        this.sessions.getLastHomework(payload.clerkUserId),
       ]);
 
       // Sentence-level TTS for welcome message too
@@ -117,10 +121,12 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
         userProfile:         userProfile ?? { ...FALLBACK_PROFILE, userId: payload.clerkUserId },
         recentMemories,
         conversationHistory: [],
-        currentTranscript:   '[SESSION_START] Generate a warm, personalized opening greeting for this session. Greet the user by name. If this is not their first session, reference something specific from the memories provided. Keep it natural and brief — 2-3 sentences max.',
+        currentTranscript:   '[SESSION_START] Generate a warm, personalized opening greeting for this session. Greet the user by name. If this is not their first session, reference something specific from the memories provided. If there is pending homework from last session, ask about it naturally after greeting. Keep it natural and brief — 2-3 sentences max.',
         currentEmotion:      null,
         visionContext:       null,
         sessionNumber:       sessionCount + 1,
+        journalEntries,
+        pendingHomework,
 
         onChunk: (event) => {
           client.emit('ai:chunk', { text: event.text });
@@ -179,36 +185,50 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     if (!transcript?.trim()) return;
 
     // Drop concurrent messages from the same client — prevents parallel AI pipeline calls
-    // that would cause interleaved responses and repeated error floods
     if (this.processingClients.has(client.id)) {
       this.logger.warn(`[${client.id}] Dropping message — previous turn still processing`);
       return;
     }
     this.processingClients.add(client.id);
 
+    // Safety: auto-release lock after 35s — just above the 28s stream abort timeout
+    const lockTimeout = setTimeout(() => {
+      if (this.processingClients.has(client.id)) {
+        this.logger.warn(`[${client.id}] Lock timeout — force-releasing after 35s`);
+        this.processingClients.delete(client.id);
+      }
+    }, 35_000);
+
     try {
-      const [userProfile, recentMemories, sessionCount] = await Promise.all([
+      // Hybrid memory fetch: semantic search against user's message + recent fallback
+      const [userProfile, semanticMemories, recentMemories, sessionCount, journalEntries] = await Promise.all([
         this.sessions.getUserProfile(clerkUserId),
-        this.sessions.getRecentMemories(clerkUserId, 8),
+        this.sessions.getSemanticMemories(clerkUserId, transcript, 5),
+        this.sessions.getRecentMemories(clerkUserId, 3),
         this.sessions.getSessionCount(clerkUserId),
+        this.sessions.getRecentJournalEntries(clerkUserId, 5),
       ]);
 
-      // Sentence-level TTS pipeline:
-      // Each complete sentence is sent to TTS immediately as it arrives in the stream.
-      // TTS calls run in parallel — first sentence audio is ready ~1-1.5s after stream starts
-      // instead of 4-5s for the full response.
+      // Merge: semantic (most relevant) first, then pad with recent (chronological context)
+      const seenIds = new Set(semanticMemories.map((m) => m.id));
+      const memories = [
+        ...semanticMemories,
+        ...recentMemories.filter((m) => !seenIds.has(m.id)),
+      ].slice(0, 8);
+
       let sentenceBuffer  = '';
       const ttsQueue: Promise<string | null>[] = [];
 
       await this.therapist.streamResponse({
         userName:            userName || 'there',
         userProfile:         userProfile ?? { ...FALLBACK_PROFILE, userId: clerkUserId },
-        recentMemories,
+        recentMemories:      memories,
         conversationHistory,
         currentTranscript:   transcript,
         currentEmotion:      emotion ?? null,
         visionContext:       visionContext ?? null,
         sessionNumber:       sessionCount + 1,
+        journalEntries,
 
         onChunk: (event) => {
           client.emit('ai:chunk', { text: event.text });
@@ -252,7 +272,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       this.logger.error('session:message', err);
       client.emit('session:error', { message: 'AI pipeline error' });
     } finally {
-      // Always release lock so next message can be processed
+      clearTimeout(lockTimeout);
       this.processingClients.delete(client.id);
     }
   }
@@ -266,17 +286,30 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       await this.sessions.endSession(payload.sessionId);
       client.emit('session:ended', { sessionId: payload.sessionId });
 
-      // Fire-and-forget: trigger post-session async job (SOAP + memory + risk)
-      await inngest.send({
-        name: 'session/ended',
-        data: {
-          sessionId:           payload.sessionId,
-          userId:              payload.userId,
-          conversationHistory: payload.conversationHistory ?? [],
-        },
-      });
+      const history = payload.conversationHistory ?? [];
+
+      // Try Inngest first (async, retryable, preferred path)
+      try {
+        await inngest.send({
+          name: 'session/ended',
+          data: {
+            sessionId:           payload.sessionId,
+            userId:              payload.userId,
+            conversationHistory: history,
+          },
+        });
+        this.logger.log(`Inngest event sent for session ${payload.sessionId}`);
+      } catch (inngestErr) {
+        // Inngest unavailable — run post-session inline (fire-and-forget)
+        this.logger.warn('Inngest send failed, running post-session inline', inngestErr);
+        this.postSession
+          .process(payload.sessionId, payload.userId, history)
+          .catch((e) => this.logger.error('Inline post-session failed', e));
+      }
     } catch (err) {
       this.logger.error('session:end', err);
+      // Always notify client even on error — prevents "Ending..." stuck state
+      client.emit('session:ended', { sessionId: payload.sessionId });
     }
   }
 }

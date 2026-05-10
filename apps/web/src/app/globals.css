@@ -1,26 +1,70 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #030712;
+  --foreground: #f9fafb;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Aurora background keyframes ────────────────────────────────────────────── */
+
+@keyframes aurora-1 {
+  0%   { transform: translate(0%, 0%)    scale(1);    opacity: 0.55; }
+  33%  { transform: translate(8%, -12%)  scale(1.08); opacity: 0.65; }
+  66%  { transform: translate(-5%, 10%)  scale(0.95); opacity: 0.50; }
+  100% { transform: translate(0%, 0%)    scale(1);    opacity: 0.55; }
+}
+
+@keyframes aurora-2 {
+  0%   { transform: translate(0%, 0%)    scale(1);    opacity: 0.45; }
+  40%  { transform: translate(-10%, 8%)  scale(1.12); opacity: 0.60; }
+  70%  { transform: translate(6%, -6%)   scale(0.90); opacity: 0.40; }
+  100% { transform: translate(0%, 0%)    scale(1);    opacity: 0.45; }
+}
+
+@keyframes aurora-3 {
+  0%   { transform: translate(0%, 0%)   scale(1);    opacity: 0.35; }
+  50%  { transform: translate(12%, 6%)  scale(1.15); opacity: 0.50; }
+  100% { transform: translate(0%, 0%)   scale(1);    opacity: 0.35; }
+}
+
+@keyframes aurora-4 {
+  0%   { transform: translate(0%, 0%)    scale(1);    opacity: 0.40; }
+  35%  { transform: translate(-8%, -8%)  scale(1.10); opacity: 0.55; }
+  65%  { transform: translate(5%, 12%)   scale(0.92); opacity: 0.35; }
+  100% { transform: translate(0%, 0%)    scale(1);    opacity: 0.40; }
+}
+
+@keyframes aurora-5 {
+  0%   { transform: translate(0%, 0%)   scale(1);    opacity: 0.30; }
+  45%  { transform: translate(10%, -5%) scale(1.08); opacity: 0.45; }
+  100% { transform: translate(0%, 0%)   scale(1);    opacity: 0.30; }
+}
+
+/* ── Journal page classes (must be class-based — page-flip overwrites inline style.cssText) ── */
+
+.journal-cover {
+  background-color: #B8CCBE;
+  background-image:
+    repeating-linear-gradient(135deg, transparent 0px, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px),
+    repeating-linear-gradient(45deg,  transparent 0px, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px),
+    radial-gradient(ellipse at 28% 28%, rgba(255,255,255,0.22) 0%, transparent 52%),
+    radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.28) 100%);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.journal-parchment {
+  background-color: #EFE0B8;
+  background-image:
+    radial-gradient(ellipse at 12% 18%, rgba(160,120,60,0.13) 0%, transparent 45%),
+    radial-gradient(ellipse at 88% 85%, rgba(140,100,50,0.11) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 45%, rgba(255,248,210,0.30) 0%, transparent 62%),
+    repeating-linear-gradient(90deg, transparent 0px, transparent 22px, rgba(180,140,80,0.05) 22px, rgba(180,140,80,0.05) 23px);
+  overflow: hidden;
+  box-sizing: border-box;
 }
