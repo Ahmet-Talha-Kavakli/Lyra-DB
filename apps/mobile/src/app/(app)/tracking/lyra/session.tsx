@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
 import { useSessionStore } from '@/stores/session-store';
 import { colors } from '@/constants/theme';
+import { BackToTrackingButton } from '@/components/back-to-tracking-button';
 
 export default function SessionScreen() {
   const { getToken } = useAuth();
@@ -28,6 +29,7 @@ export default function SessionScreen() {
   if (status === 'idle' || status === 'ended') {
     return (
       <SafeAreaView style={st.root} edges={['top']}>
+        <BackToTrackingButton tint="#9A7DE4" />
         <View style={st.idleContainer}>
           {/* Lyra avatar glow rings */}
           <View style={st.avatarWrap}>

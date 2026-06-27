@@ -79,6 +79,7 @@ export interface UpsertLogInput {
   logDate: string;             // YYYY-MM-DD
   flow?: TFlow | null;
   isPeriodStart?: boolean;
+  isPeriodEnd?: boolean;
   notes?: string | null;
   payload?: IPeriodLogPayload;
 }
@@ -122,6 +123,26 @@ export async function unmarkPeriodStart(
 ): Promise<{ ok: boolean; rolledBackTo: string | null }> {
   const res = await fetch(
     `${API_BASE_URL}/bloom/log/${dateIso}/unmark-period-start`,
+    { method: 'POST', headers: headers(clerkUserId) },
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+/**
+ * Period end undo: clears the `isPeriodEnd` flag. Mirror of unmarkPeriodStart.
+ * Cycle predictor / period bar falls back to the 5-day visual fallback if no
+ * end flag is present.
+ */
+export async function unmarkPeriodEnd(
+  { clerkUserId }: FetchOpts,
+  dateIso: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(
+    `${API_BASE_URL}/bloom/log/${dateIso}/unmark-period-end`,
     { method: 'POST', headers: headers(clerkUserId) },
   );
   if (!res.ok) {

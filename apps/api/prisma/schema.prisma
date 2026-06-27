@@ -245,6 +245,7 @@ model PeriodLog {
   logDate       DateTime @map("log_date") @db.Date
   flow          String?
   isPeriodStart Boolean  @default(false) @map("is_period_start")
+  isPeriodEnd   Boolean  @default(false) @map("is_period_end")
   notes         String?
   payload       Json     @default("{}")
   createdAt     DateTime @default(now()) @map("created_at")

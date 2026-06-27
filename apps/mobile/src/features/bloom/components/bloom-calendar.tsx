@@ -37,6 +37,7 @@ import { useTranslation, getLocale } from '@/i18n';
 import enJson from '@/i18n/en.json';
 import trJson from '@/i18n/tr.json';
 import { phasePresentation } from '../lib/phases';
+import { useCurrentDate } from '../hooks/use-current-date';
 import {
   addDays,
   computeWeekCells,
@@ -55,12 +56,18 @@ interface Props {
   onOpenMonth: () => void;
   /** Backend-driven period start ISO set (real logged days, "filled" simge). */
   periodStartIso?: Set<string>;
+  /** Backend-driven period end ISO set (kullanıcı "regl son günü" işaretledi). */
+  periodEndIso?: Set<string>;
   /** Backend-driven any-flow ISO set (kullanıcı bu güne flow girdi). */
   flowDayIso?: Set<string>;
   /** Long-press → "Adetim başladı" handler. */
   onMarkPeriodStart?: (date: Date) => Promise<boolean> | void;
   /** Long-press → "İşareti kaldır" handler (zaten işaretli günler). */
   onUnmarkPeriodStart?: (date: Date) => Promise<boolean> | void;
+  /** Long-press → "Adetim bitti" handler. */
+  onMarkPeriodEnd?: (date: Date) => Promise<boolean> | void;
+  /** Long-press → "Bitiş işaretini kaldır" handler. */
+  onUnmarkPeriodEnd?: (date: Date) => Promise<boolean> | void;
 }
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -81,13 +88,17 @@ export function BloomCalendar({
   onSelectDate,
   onOpenMonth,
   periodStartIso,
+  periodEndIso,
   flowDayIso,
   onMarkPeriodStart,
   onUnmarkPeriodStart,
+  onMarkPeriodEnd,
+  onUnmarkPeriodEnd,
 }: Props) {
   const { t } = useTranslation();
   const listRef = useRef<FlatList<WeekItem>>(null);
-  const today = useMemo(() => toUtcMidnight(new Date()), []);
+  const currentDate = useCurrentDate();
+  const today = useMemo(() => toUtcMidnight(currentDate), [currentDate]);
   const withheld = useMemo(() => shouldWithholdPrediction(profile), [profile]);
 
   // iOS Health "Cycle Tracking" pattern: bugün her zaman 4. sütunda (ortada).
@@ -147,49 +158,101 @@ export function BloomCalendar({
 
   const handleDayLongPress = useCallback(
     (cell: DayCell) => {
-      if (cell.isFuture) return; // future days can't be period-start
-      const isMarked = !!periodStartIso && periodStartIso.has(cell.iso);
-      // Marked → unmark only; unmarked → mark only. Tek-aksiyon menü.
-      if (isMarked && !onUnmarkPeriodStart) return;
-      if (!isMarked && !onMarkPeriodStart) return;
+      if (cell.isFuture) return; // future days can't be period start/end
+      const isStartMarked = !!periodStartIso && periodStartIso.has(cell.iso);
+      const isEndMarked = !!periodEndIso && periodEndIso.has(cell.iso);
+
+      // 4 durumlu menü — her durum kendi aksiyon listesini oluşturur:
+      //   1) Hiçbir şey marked değil          → [Mark start]
+      //   2) Sadece start marked              → [Unmark start, Mark end]
+      //   3) Sadece end marked                → [Unmark end, Mark start]
+      //   4) Hem start hem end marked         → [Unmark start, Unmark end]
+      type Action = {
+        label: string;
+        run: () => void;
+        destructive?: boolean;
+      };
+      const actions: Action[] = [];
+
+      if (isStartMarked && onUnmarkPeriodStart) {
+        actions.push({
+          label: t('bloom.calendar.actions.unmarkPeriodStart'),
+          run: () => void onUnmarkPeriodStart(cell.date),
+          destructive: true,
+        });
+      }
+      if (isEndMarked && onUnmarkPeriodEnd) {
+        actions.push({
+          label: t('bloom.calendar.actions.unmarkPeriodEnd'),
+          run: () => void onUnmarkPeriodEnd(cell.date),
+          destructive: true,
+        });
+      }
+      if (!isStartMarked && onMarkPeriodStart) {
+        actions.push({
+          label: t('bloom.calendar.actions.markPeriodStart'),
+          run: () => void onMarkPeriodStart(cell.date),
+        });
+      }
+      if (!isEndMarked && onMarkPeriodEnd) {
+        actions.push({
+          label: t('bloom.calendar.actions.markPeriodEnd'),
+          run: () => void onMarkPeriodEnd(cell.date),
+        });
+      }
+
+      if (actions.length === 0) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
       const dateLabel = cell.date.toLocaleDateString(getLocale() === 'tr' ? 'tr-TR' : 'en-US', {
         month: 'long',
         day: 'numeric',
       });
-      const actionLabel = isMarked
-        ? t('bloom.calendar.actions.unmarkPeriodStart')
-        : t('bloom.calendar.actions.markPeriodStart');
-      const options = [actionLabel, t('bloom.calendar.actions.cancel')];
-
-      const fire = () => {
-        if (isMarked) void onUnmarkPeriodStart?.(cell.date);
-        else void onMarkPeriodStart?.(cell.date);
-      };
+      const cancelLabel = t('bloom.calendar.actions.cancel');
+      const options = [...actions.map((a) => a.label), cancelLabel];
+      const cancelIdx = options.length - 1;
+      const destructiveIndexes = actions
+        .map((a, i) => (a.destructive ? i : -1))
+        .filter((i) => i >= 0);
 
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           {
             options,
-            cancelButtonIndex: 1,
-            destructiveButtonIndex: isMarked ? 0 : undefined,
+            cancelButtonIndex: cancelIdx,
+            // iOS allows only one destructive button — use the first if multiple
+            destructiveButtonIndex: destructiveIndexes[0],
             title: dateLabel,
             userInterfaceStyle: 'dark',
           },
           (idx) => {
-            if (idx === 0) fire();
+            if (idx != null && idx >= 0 && idx < actions.length) {
+              actions[idx]!.run();
+            }
           },
         );
       } else {
         // Android fallback
-        Alert.alert(dateLabel, undefined, [
-          { text: actionLabel, onPress: fire, style: isMarked ? 'destructive' : 'default' },
-          { text: t('bloom.calendar.actions.cancel'), style: 'cancel' },
-        ]);
+        Alert.alert(
+          dateLabel,
+          undefined,
+          [
+            ...actions.map((a) => ({
+              text: a.label,
+              onPress: a.run,
+              style: (a.destructive ? 'destructive' : 'default') as 'destructive' | 'default',
+            })),
+            { text: cancelLabel, style: 'cancel' as const },
+          ],
+        );
       }
     },
-    [onMarkPeriodStart, onUnmarkPeriodStart, periodStartIso, t],
+    [
+      periodStartIso, periodEndIso,
+      onMarkPeriodStart, onUnmarkPeriodStart,
+      onMarkPeriodEnd, onUnmarkPeriodEnd,
+      t,
+    ],
   );
 
   const renderWeek = useCallback(
@@ -199,6 +262,7 @@ export function BloomCalendar({
         today,
         predictionWithheld: withheld,
         periodStartIso,
+        periodEndIso,
         flowDayIso,
       });
       return (
@@ -215,7 +279,7 @@ export function BloomCalendar({
         </View>
       );
     },
-    [profile, today, withheld, selectedDate, handleDayPress, handleDayLongPress, periodStartIso, flowDayIso],
+    [profile, today, withheld, selectedDate, handleDayPress, handleDayLongPress, periodStartIso, periodEndIso, flowDayIso],
   );
 
   // Dynamic weekday labels — visible week'in gerçek gün sırasına göre.

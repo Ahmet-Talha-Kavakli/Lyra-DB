@@ -13,19 +13,9 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="session">
-        <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right.fill" />
-        <NativeTabs.Trigger.Label>Session</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="journal">
-        <NativeTabs.Trigger.Icon sf="book.fill" />
-        <NativeTabs.Trigger.Label>Journal</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="bloom">
-        <NativeTabs.Trigger.Icon sf="leaf.fill" />
-        <NativeTabs.Trigger.Label>Bloom</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="tracking">
+        <NativeTabs.Trigger.Icon sf="square.grid.2x2.fill" />
+        <NativeTabs.Trigger.Label>Tracking</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">

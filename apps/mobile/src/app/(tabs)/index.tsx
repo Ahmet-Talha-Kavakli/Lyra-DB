@@ -110,7 +110,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <Pressable
-            onPress={() => router.push('/(tabs)/session')}
+            onPress={() => router.push('/(app)/tracking/lyra/session' as never)}
             style={({ pressed }) => [st.sessionBtn, pressed && { opacity: 0.82 }]}
           >
             <RNText style={st.sessionBtnTxt}>Start Session</RNText>
@@ -121,13 +121,13 @@ export default function HomeScreen() {
         <View style={st.card}>
           <View style={st.row}>
             <RNText style={st.cardTitle}>Journal</RNText>
-            <Pressable onPress={() => router.push('/(tabs)/journal')}>
+            <Pressable onPress={() => router.push('/(app)/tracking/lyra' as never)}>
               <RNText style={st.viewAll}>View All</RNText>
             </Pressable>
           </View>
           <RNText style={st.cardSub}>Capture your thoughts and track your progress over time.</RNText>
           <Pressable
-            onPress={() => router.push('/(tabs)/journal')}
+            onPress={() => router.push('/(app)/tracking/lyra' as never)}
             style={({ pressed }) => [st.writeBtn, pressed && { opacity: 0.75 }]}
           >
             <RNText style={st.writeBtnTxt}>Write Entry</RNText>

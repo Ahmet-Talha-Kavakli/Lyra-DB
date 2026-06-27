@@ -3,6 +3,7 @@ import { useUser } from '@clerk/expo';
 import type { IBloomToday, ICycleProfile } from '@ai-therapist/types';
 import { fetchToday } from '../lib/api';
 import { computeToday } from '../lib/cycle-calculator';
+import { useCurrentDate } from './use-current-date';
 
 /**
  * Today payload — first paint comes from the local calculator (using the cached
@@ -11,6 +12,7 @@ import { computeToday } from '../lib/cycle-calculator';
  */
 export function useToday(profile: ICycleProfile | null) {
   const { user } = useUser();
+  const currentDate = useCurrentDate();
   const [serverToday, setServerToday] = useState<IBloomToday | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +23,9 @@ export function useToday(profile: ICycleProfile | null) {
       lastPeriodStart: profile.lastPeriodStart ? new Date(profile.lastPeriodStart) : null,
       averageCycleDays: profile.averageCycleDays,
       stage: profile.stage,
+      today: currentDate,
     });
-  }, [profile]);
+  }, [profile, currentDate]);
 
   const reload = useCallback(async () => {
     if (!user?.id) return;
@@ -40,10 +43,19 @@ export function useToday(profile: ICycleProfile | null) {
 
   useEffect(() => {
     if (profile) void reload();
-  }, [profile, reload]);
+    // currentDate dependency: gece yarısı geçince server'dan da taze veri al
+  }, [profile, reload, currentDate]);
+
+  // Önce localToday — "bugün" cihazın yerel tarihinden okunur. Server payload'ı
+  // yardımcı (`predictionWithheld` reason, prediction range, vb.) ama "bugün"
+  // tarihinin sahibi her zaman cihaz. Aksi halde server timezone'u (UTC) ile
+  // kullanıcı TZ'i (TR = UTC+3) çakışırsa gece yarısı kullanıcı "dünde" kalır.
+  const today = localToday
+    ? { ...(serverToday ?? {}), ...localToday }
+    : serverToday;
 
   return {
-    today: serverToday ?? localToday,
+    today,
     loading,
     error,
     reload,

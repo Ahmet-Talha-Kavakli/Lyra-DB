@@ -71,12 +71,16 @@
       "monthFull": ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"],
       "actions": {
         "markPeriodStart": "Adetim başladı",
-        "unmarkPeriodStart": "İşareti kaldır",
+        "unmarkPeriodStart": "Başlangıç işaretini kaldır",
+        "markPeriodEnd": "Adetimin son günü",
+        "unmarkPeriodEnd": "Son gün işaretini kaldır",
         "cancel": "İptal"
       },
       "toast": {
         "marked": "Adet başlangıcı işaretlendi",
-        "unmarked": "İşaret kaldırıldı",
+        "unmarked": "Başlangıç işareti kaldırıldı",
+        "endMarked": "Adetin son günü işaretlendi",
+        "endUnmarked": "Son gün işareti kaldırıldı",
         "undo": "Geri al"
       },
       "markPeriodToday": "Bugün adetin mi başladı?",

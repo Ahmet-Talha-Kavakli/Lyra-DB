@@ -1,15 +1,19 @@
+/**
+ * Bloom onboarding — 3 step (doğum tarihi → son adet → ortalama döngü).
+ *
+ * Apple primitives:
+ * - DateTimePicker (native UIDatePicker)
+ * - @expo/ui Button (next/back/save) — gerçek SwiftUI
+ * - @expo/ui Picker (wheel) for cycle length
+ */
+
 import { useState } from 'react';
-import {
-  View,
-  Text as RNText,
-  Pressable,
-  StyleSheet,
-  Alert,
-  Platform,
-} from 'react-native';
+import { View, Text as RNText, StyleSheet, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Host, Button, Picker, Text } from '@expo/ui/swift-ui';
+import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { colors } from '@/constants/theme';
 import { useTranslation } from '@/i18n';
 import type { UpsertProfileInput } from '../lib/api';
@@ -24,7 +28,8 @@ interface Props {
   onSkip?: () => void;
 }
 
-const CYCLE_PRESETS = [25, 26, 27, 28, 29, 30, 31, 32];
+// 21-45 arası tüm değerler (klinik aralık)
+const CYCLE_VALUES = Array.from({ length: 45 - 21 + 1 }, (_, i) => i + 21);
 
 const NOW = new Date();
 const DEFAULT_BIRTH = new Date(1995, 5, 15);
@@ -35,6 +40,9 @@ const MIN_LAST_PERIOD = (() => {
   d.setDate(d.getDate() - 365);
   return d;
 })();
+
+// "Bilmiyorum" = magic value 0 (Picker selection için)
+const UNKNOWN_CYCLE = 0;
 
 export function BloomOnboarding({ initial, onSubmit, onSkip }: Props) {
   const { t } = useTranslation();
@@ -62,8 +70,6 @@ export function BloomOnboarding({ initial, onSubmit, onSkip }: Props) {
     if (!ok) Alert.alert(t('bloom.onboarding.saveError'));
   }
 
-  // NativeTabs tab bar yüksekliği iOS'ta ~50; safe area home indicator ~34.
-  // Buton tabbar altında kaybolmasın diye root View'a bottom padding veriyoruz.
   const bottomPad = (insets.bottom || 0) + 70;
 
   return (
@@ -131,77 +137,65 @@ export function BloomOnboarding({ initial, onSubmit, onSkip }: Props) {
           <>
             <RNText style={st.q}>{t('bloom.onboarding.stepCycleLength')}</RNText>
             <RNText style={st.hint}>{t('bloom.onboarding.stepCycleLengthHint')}</RNText>
-            <View style={st.dayGrid}>
-              {CYCLE_PRESETS.map((n) => (
-                <Pressable
-                  key={n}
-                  onPress={() => setAvgCycle(n)}
-                  style={[
-                    st.dayPill,
-                    avgCycle === n && {
-                      backgroundColor: colors.brand[500],
-                      borderColor: colors.brand[500],
-                    },
-                  ]}
+            <View style={st.cyclePickerWrap}>
+              <Host
+                matchContents
+                style={{ alignSelf: 'stretch' }}
+                colorScheme="dark"
+              >
+                <Picker
+                  label={t('bloom.onboarding.stepCycleLength')}
+                  selection={avgCycle ?? UNKNOWN_CYCLE}
+                  onSelectionChange={(v) =>
+                    setAvgCycle((v as number) === UNKNOWN_CYCLE ? null : (v as number))
+                  }
+                  modifiers={[pickerStyle('wheel')]}
                 >
-                  <RNText
-                    style={[st.dayText, avgCycle === n && { color: '#fff' }]}
-                  >
-                    {n}
-                  </RNText>
-                </Pressable>
-              ))}
+                  <Text modifiers={[tag(UNKNOWN_CYCLE)]}>
+                    {t('bloom.onboarding.stepCycleDontKnow')}
+                  </Text>
+                  {CYCLE_VALUES.map((n) => (
+                    <Text key={n} modifiers={[tag(n)]}>
+                      {`${n} gün`}
+                    </Text>
+                  ))}
+                </Picker>
+              </Host>
             </View>
-            <Pressable
-              onPress={() => setAvgCycle(null)}
-              style={[
-                st.dontKnow,
-                avgCycle == null && {
-                  borderColor: colors.brand[400],
-                  backgroundColor: 'rgba(155,125,228,0.12)',
-                },
-              ]}
-            >
-              <RNText style={st.dontKnowText}>
-                {t('bloom.onboarding.stepCycleDontKnow')}
-              </RNText>
-            </Pressable>
           </>
         )}
       </View>
 
       <View style={st.actions}>
-        {step > 0 ? (
-          <Pressable
-            style={st.backBtn}
-            onPress={() => setStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2) : s))}
-          >
-            <RNText style={st.backText}>{t('bloom.onboarding.back')}</RNText>
-          </Pressable>
-        ) : onSkip ? (
-          <Pressable style={st.backBtn} onPress={onSkip}>
-            <RNText style={st.backText}>{t('bloom.onboarding.skipForNow')}</RNText>
-          </Pressable>
-        ) : (
-          <View style={st.backBtn} />
-        )}
+        <Host matchContents style={st.actionHost}>
+          {step > 0 ? (
+            <Button
+              label={t('bloom.onboarding.back')}
+              onPress={() => setStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2) : s))}
+            />
+          ) : onSkip ? (
+            <Button
+              label={t('bloom.onboarding.skipForNow')}
+              onPress={onSkip}
+            />
+          ) : (
+            <Button label=" " onPress={() => {}} />
+          )}
+        </Host>
 
-        {step < 2 ? (
-          <Pressable
-            style={st.nextBtn}
-            onPress={() => setStep((s) => ((s + 1) as 0 | 1 | 2))}
-          >
-            <RNText style={st.nextText}>{t('bloom.onboarding.next')}</RNText>
-          </Pressable>
-        ) : (
-          <Pressable
-            disabled={saving}
-            style={[st.nextBtn, saving && { opacity: 0.6 }]}
-            onPress={handleSave}
-          >
-            <RNText style={st.nextText}>{t('bloom.onboarding.save')}</RNText>
-          </Pressable>
-        )}
+        <Host matchContents style={st.actionHost}>
+          {step < 2 ? (
+            <Button
+              label={t('bloom.onboarding.next')}
+              onPress={() => setStep((s) => ((s + 1) as 0 | 1 | 2))}
+            />
+          ) : (
+            <Button
+              label={saving ? '…' : t('bloom.onboarding.save')}
+              onPress={saving ? () => {} : handleSave}
+            />
+          )}
+        </Host>
       </View>
     </View>
   );
@@ -245,44 +239,20 @@ const st = StyleSheet.create({
     width: '100%',
     height: 220,
   },
-  dayGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+  cyclePickerWrap: {
+    flex: 1,
+    alignItems: 'stretch',
+    justifyContent: 'center',
+    minHeight: 220,
   },
-  dayPill: {
-    minWidth: 56,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(155,125,228,0.35)',
-    backgroundColor: 'rgba(98,55,201,0.10)',
-    alignItems: 'center',
-  },
-  dayText: { fontSize: 15, color: colors.text.primary, fontWeight: '600' },
-  dontKnow: {
-    marginTop: 18,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(168,158,200,0.25)',
-  },
-  dontKnowText: { fontSize: 14, color: colors.text.secondary },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: 14,
+    gap: 12,
   },
-  backBtn: { paddingVertical: 12, paddingHorizontal: 18, minWidth: 80 },
-  backText: { fontSize: 15, color: colors.text.secondary, fontWeight: '500' },
-  nextBtn: {
-    backgroundColor: colors.brand[500],
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 12,
+  actionHost: {
+    minHeight: 44,
+    minWidth: 100,
   },
-  nextText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

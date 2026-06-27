@@ -1,17 +1,19 @@
-import { useState, useRef } from 'react';
-import { View, Text as RNText, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { View, Text as RNText, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Host, Button } from '@expo/ui/swift-ui';
 import { colors } from '@/constants/theme';
 import { useTranslation } from '@/i18n';
 import { useCycleProfile } from '@/features/bloom/hooks/use-cycle-profile';
 import { useToday } from '@/features/bloom/hooks/use-today';
 import { useCalendarLogs } from '@/features/bloom/hooks/use-calendar-logs';
+import { useCurrentDate } from '@/features/bloom/hooks/use-current-date';
 import { BloomOnboarding } from '@/features/bloom/components/bloom-onboarding';
 import { TodayCard } from '@/features/bloom/components/today-card';
 import { BloomCalendar } from '@/features/bloom/components/bloom-calendar';
 import { BloomCalendarModal } from '@/features/bloom/components/bloom-calendar-modal';
 import { BloomUndoToast } from '@/features/bloom/components/bloom-undo-toast';
+import { BackToTrackingButton } from '@/components/back-to-tracking-button';
 
 export default function BloomScreen() {
   const { t } = useTranslation();
@@ -27,7 +29,8 @@ export default function BloomScreen() {
 
   // Toast state — kazara mark/unmark için 5 sn'lik anında undo affordance.
   // `key` her tetiklemede artar → toast component fresh fade-in + timer reset.
-  type ToastKind = 'marked' | 'unmarked' | null;
+  // 4 türlü: start marked/unmarked + end marked/unmarked.
+  type ToastKind = 'marked' | 'unmarked' | 'endMarked' | 'endUnmarked' | null;
   const [toast, setToast] = useState<{
     kind: ToastKind;
     date: Date | null;
@@ -35,7 +38,7 @@ export default function BloomScreen() {
   }>({ kind: null, date: null, key: 0 });
   const toastSeq = useRef(0);
 
-  const showToast = (kind: 'marked' | 'unmarked', date: Date) => {
+  const showToast = (kind: Exclude<ToastKind, null>, date: Date) => {
     toastSeq.current += 1;
     setToast({ kind, date, key: toastSeq.current });
   };
@@ -59,38 +62,68 @@ export default function BloomScreen() {
     return ok;
   };
 
+  const handleMarkPeriodEnd = async (date: Date) => {
+    const ok = await calendarLogs.markPeriodEnd(date);
+    if (ok) {
+      void reloadToday();
+      showToast('endMarked', date);
+    }
+    return ok;
+  };
+
+  const handleUnmarkPeriodEnd = async (date: Date) => {
+    const ok = await calendarLogs.unmarkPeriodEnd(date);
+    if (ok) {
+      void reloadToday();
+      showToast('endUnmarked', date);
+    }
+    return ok;
+  };
+
   const toastMessage =
     toast.kind === 'marked'
       ? t('bloom.calendar.toast.marked')
       : toast.kind === 'unmarked'
         ? t('bloom.calendar.toast.unmarked')
-        : null;
+        : toast.kind === 'endMarked'
+          ? t('bloom.calendar.toast.endMarked')
+          : toast.kind === 'endUnmarked'
+            ? t('bloom.calendar.toast.endUnmarked')
+            : null;
 
   const handleUndo = async () => {
     if (!toast.kind || !toast.date) return;
-    // Mark edildiyse → unmark; unmark edildiyse → mark (geri sar)
+    // Çift yönlü geri al
     if (toast.kind === 'marked') {
       await calendarLogs.unmarkPeriodStart(toast.date);
-    } else {
+    } else if (toast.kind === 'unmarked') {
       await calendarLogs.markPeriodStart(toast.date);
+    } else if (toast.kind === 'endMarked') {
+      await calendarLogs.unmarkPeriodEnd(toast.date);
+    } else if (toast.kind === 'endUnmarked') {
+      await calendarLogs.markPeriodEnd(toast.date);
     }
     void reloadToday();
     dismissToast();
   };
 
-  // Today's ISO (UTC midnight) — for `todayIsLoggedPeriod` check + CTA
-  const todayIso = (() => {
-    const d = new Date();
-    return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-      .toISOString()
-      .slice(0, 10);
-  })();
+  // "Bugün" tarihi — cihazdan okunur, gece yarısı geçince otomatik güncellenir.
+  // selectedDate da bugüne hizalanır; kullanıcı manuel tap'le başka güne
+  // gidebilir ama bir sonraki gün değişiminde tekrar bugüne döner. Yani
+  // "bugün" her zaman sistem gerçeği, biz dondurmuyoruz.
+  const currentDate = useCurrentDate();
+  const todayIso = currentDate.toISOString().slice(0, 10);
+
+  useEffect(() => {
+    setSelectedDate(currentDate);
+  }, [currentDate]);
   const todayIsLoggedPeriod =
     calendarLogs.periodStartIso.has(todayIso) || calendarLogs.flowDayIso.has(todayIso);
 
   if (profileLoading) {
     return (
       <SafeAreaView style={st.root} edges={['top']}>
+        <BackToTrackingButton tint="#E8A87C" />
         <View style={st.center}>
           <ActivityIndicator color={colors.brand[300]} />
         </View>
@@ -130,6 +163,7 @@ export default function BloomScreen() {
 
   return (
     <SafeAreaView style={st.root} edges={['top']}>
+      <BackToTrackingButton tint="#E8A87C" />
       <ScrollView
         style={st.scroll}
         contentContainerStyle={[st.content, { paddingBottom: tabBarPad }]}
@@ -140,14 +174,13 @@ export default function BloomScreen() {
           <View style={st.header}>
             <RNText style={st.title}>{t('bloom.tab')}</RNText>
             {profile && (
-              <Pressable
-                onPress={() => setEditing(true)}
-                hitSlop={12}
-                accessibilityLabel={t('bloom.today.edit')}
-                style={({ pressed }) => [st.editBtn, pressed && { opacity: 0.6 }]}
-              >
-                <Ionicons name="create-outline" size={22} color={colors.brand[300]} />
-              </Pressable>
+              <Host matchContents>
+                <Button
+                  label=""
+                  systemImage="pencil"
+                  onPress={() => setEditing(true)}
+                />
+              </Host>
             )}
           </View>
         </View>
@@ -160,9 +193,12 @@ export default function BloomScreen() {
             onSelectDate={setSelectedDate}
             onOpenMonth={() => setMonthOpen(true)}
             periodStartIso={calendarLogs.periodStartIso}
+            periodEndIso={calendarLogs.periodEndIso}
             flowDayIso={calendarLogs.flowDayIso}
             onMarkPeriodStart={handleMarkPeriodStart}
             onUnmarkPeriodStart={handleUnmarkPeriodStart}
+            onMarkPeriodEnd={handleMarkPeriodEnd}
+            onUnmarkPeriodEnd={handleUnmarkPeriodEnd}
           />
         )}
 
@@ -198,9 +234,12 @@ export default function BloomScreen() {
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         periodStartIso={calendarLogs.periodStartIso}
+        periodEndIso={calendarLogs.periodEndIso}
         flowDayIso={calendarLogs.flowDayIso}
         onMarkPeriodStart={handleMarkPeriodStart}
         onUnmarkPeriodStart={handleUnmarkPeriodStart}
+        onMarkPeriodEnd={handleMarkPeriodEnd}
+        onUnmarkPeriodEnd={handleUnmarkPeriodEnd}
         toastMessage={toastMessage}
         toastKey={toast.key}
         toastUndoLabel={t('bloom.calendar.toast.undo')}
@@ -227,7 +266,7 @@ const st = StyleSheet.create({
   scroll:  { flex: 1 },
   content: {},
   center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerWrap: { paddingHorizontal: 20 },
+  headerWrap: { paddingHorizontal: 20, paddingTop: 36 },
   header:  {
     marginTop: 16,
     marginBottom: 12,
@@ -240,16 +279,6 @@ const st = StyleSheet.create({
     color: colors.text.primary,
     fontWeight: '700',
     letterSpacing: -0.5,
-  },
-  editBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(155,125,228,0.3)',
-    backgroundColor: 'rgba(98,55,201,0.10)',
   },
   bodyWrap: {
     paddingHorizontal: 20,

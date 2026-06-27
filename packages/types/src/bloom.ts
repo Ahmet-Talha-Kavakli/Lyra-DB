@@ -49,18 +49,36 @@ export interface ICycleProfile {
  */
 export type TBloomMood =
   | 'anxious' | 'irritable' | 'sad' | 'angry' | 'sensitive'
-  | 'empowered' | 'calm' | 'motivated' | 'withdrawn' | 'energetic'
-  | 'foggy' | 'connected';
+  | 'withdrawn' | 'foggy'
+  | 'calm' | 'energetic' | 'motivated' | 'empowered' | 'connected' | 'grateful';
 
 export type TPainType = 'cramp' | 'ache' | 'sharp' | 'dull' | 'throbbing';
 
 /**
- * Body region — front-only female silhouette. See ADR-006 / mimari karar #2.
- * Adım 2B'de SVG diyagramında tıklanabilir bölgeler.
+ * Body region — kadın silüeti (front + back) üzerinde 14 anatomik bölge.
+ * Regl + hamilelik bağlamında hassas organlar ayrı; göğüsler sol/sağ ayrı
+ * (asimetrik ağrı yaygın). Eklemler tek tag (multiselect alt-bölge yok).
  */
 export type TBodyRegion =
-  | 'head' | 'neck' | 'chest' | 'upper_abdomen' | 'lower_abdomen'
-  | 'back' | 'hip_pelvis' | 'vaginal' | 'joints';
+  // Üst gövde
+  | 'head'
+  | 'neck'
+  | 'breast_left'        // sol göğüs — regl + hamilelik anahtar
+  | 'breast_right'       // sağ göğüs
+  // Karın
+  | 'upper_abdomen'      // mide-bulantısı, hamilelik dispepsisi
+  | 'lower_abdomen'      // uterus / kramp
+  | 'ovary_left'         // sol yumurtalık — Mittelschmerz
+  | 'ovary_right'        // sağ yumurtalık
+  | 'pelvis'             // vajinal / perineal (hamilelik geç dönem)
+  // Sırt
+  | 'upper_back'
+  | 'lower_back'         // bel — regl bel ağrısı
+  | 'hip_sacrum'         // kalça / sakrum
+  // Ekstremiteler
+  | 'leg_upper'          // uyluk — kramp, su tutma
+  | 'leg_lower'          // baldır — varis, kramp
+  | 'joints';            // genel eklem ağrısı (bilek/dirsek/diz)
 
 export interface IPainEntry {
   region: TBodyRegion;
@@ -112,6 +130,7 @@ export interface IPeriodLog {
   logDate: string;             // YYYY-MM-DD
   flow: TFlow | null;
   isPeriodStart: boolean;
+  isPeriodEnd: boolean;
   notes: string | null;
   payload: IPeriodLogPayload;
   createdAt: string;
@@ -126,6 +145,7 @@ export interface IBloomCalendarEntry {
   logDate: string;             // YYYY-MM-DD
   flow: TFlow | null;
   isPeriodStart: boolean;
+  isPeriodEnd: boolean;
   hasPayload: boolean;         // payload non-empty mi (UI badge için)
 }
 

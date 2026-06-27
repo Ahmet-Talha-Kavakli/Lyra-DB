@@ -27,13 +27,19 @@ const VALID_STAGES: TCycleStage[] = [
 const VALID_FLOW: TFlow[] = ['none', 'spotting', 'light', 'medium', 'heavy', 'very_heavy'];
 const VALID_MOOD: TBloomMood[] = [
   'anxious', 'irritable', 'sad', 'angry', 'sensitive',
-  'empowered', 'calm', 'motivated', 'withdrawn', 'energetic',
-  'foggy', 'connected',
+  'withdrawn', 'foggy',
+  'calm', 'energetic', 'motivated', 'empowered', 'connected', 'grateful',
 ];
 const VALID_PAIN_TYPE: TPainType[] = ['cramp', 'ache', 'sharp', 'dull', 'throbbing'];
 const VALID_REGION: TBodyRegion[] = [
-  'head', 'neck', 'chest', 'upper_abdomen', 'lower_abdomen',
-  'back', 'hip_pelvis', 'vaginal', 'joints',
+  'head', 'neck',
+  'breast_left', 'breast_right',
+  'upper_abdomen', 'lower_abdomen',
+  'ovary_left', 'ovary_right',
+  'pelvis',
+  'upper_back', 'lower_back', 'hip_sacrum',
+  'leg_upper', 'leg_lower',
+  'joints',
 ];
 const VALID_SLEEP: TSleepQuality[] = ['restless', 'okay', 'restful'];
 const VALID_DIGESTION: TDigestionTag[] = ['bloating', 'cramps', 'constipation', 'diarrhea', 'nausea'];
@@ -353,6 +359,7 @@ export class BloomService {
       logDate: string;
       flow?: TFlow | null;
       isPeriodStart?: boolean;
+      isPeriodEnd?: boolean;
       notes?: string | null;
       payload?: any;
     },
@@ -370,6 +377,7 @@ export class BloomService {
         : String(input.notes).slice(0, MAX_NOTES_LEN);
 
     const isPeriodStart = Boolean(input.isPeriodStart);
+    const isPeriodEnd = Boolean(input.isPeriodEnd);
     const validatedPayload = this.validatePayload(input.payload);
 
     const log = await this.prisma.periodLog.upsert({
@@ -379,12 +387,14 @@ export class BloomService {
         logDate,
         flow: input.flow ?? null,
         isPeriodStart,
+        isPeriodEnd,
         notes,
         payload: validatedPayload as any,
       },
       update: {
         flow:          input.flow !== undefined ? input.flow : undefined,
         isPeriodStart: input.isPeriodStart !== undefined ? isPeriodStart : undefined,
+        isPeriodEnd:   input.isPeriodEnd !== undefined ? isPeriodEnd : undefined,
         notes:         input.notes !== undefined ? notes : undefined,
         payload:       input.payload !== undefined ? (validatedPayload as any) : undefined,
       },
@@ -417,6 +427,7 @@ export class BloomService {
     const isEmptyAfterUnmark =
       (existing.flow == null || existing.flow === 'none') &&
       !existing.notes &&
+      !existing.isPeriodEnd &&
       (!existing.payload ||
         Object.keys(existing.payload as Record<string, unknown>).length === 0);
 
@@ -428,6 +439,46 @@ export class BloomService {
       await this.prisma.periodLog.update({
         where: { userId_logDate: { userId, logDate } },
         data: { isPeriodStart: false },
+      });
+    }
+
+    return { ok: true };
+  }
+
+  /**
+   * POST /bloom/log/:date/unmark-period-end — clears `isPeriodEnd` flag.
+   * Mirror of `unmarkPeriodStart`. If the log row has no other content we
+   * delete it outright; otherwise we flip just the end flag. Cycle predictor
+   * derives the effective period end on-read from the most recent start log,
+   * so removing an end flag is fully reversible (period bar falls back to
+   * the 5-day visual fallback).
+   */
+  async unmarkPeriodEnd(clerkId: string, dateIso: string) {
+    const userId = await this.resolveUserId(clerkId);
+    const logDate = this.parseLogDate(dateIso);
+
+    const existing = await this.prisma.periodLog.findUnique({
+      where: { userId_logDate: { userId, logDate } },
+    });
+    if (!existing || !existing.isPeriodEnd) {
+      return { ok: true };
+    }
+
+    const isEmptyAfterUnmark =
+      (existing.flow == null || existing.flow === 'none') &&
+      !existing.notes &&
+      !existing.isPeriodStart &&
+      (!existing.payload ||
+        Object.keys(existing.payload as Record<string, unknown>).length === 0);
+
+    if (isEmptyAfterUnmark) {
+      await this.prisma.periodLog.delete({
+        where: { userId_logDate: { userId, logDate } },
+      });
+    } else {
+      await this.prisma.periodLog.update({
+        where: { userId_logDate: { userId, logDate } },
+        data: { isPeriodEnd: false },
       });
     }
 
@@ -490,6 +541,7 @@ export class BloomService {
         logDate: true,
         flow: true,
         isPeriodStart: true,
+        isPeriodEnd: true,
         payload: true,
       },
     });
@@ -501,6 +553,7 @@ export class BloomService {
         logDate: l.logDate.toISOString().slice(0, 10),
         flow: (l.flow as TFlow | null) ?? null,
         isPeriodStart: l.isPeriodStart,
+        isPeriodEnd: l.isPeriodEnd,
         hasPayload,
       };
     });

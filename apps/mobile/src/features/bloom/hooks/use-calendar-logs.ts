@@ -13,6 +13,7 @@ import type { IBloomCalendarEntry } from '@ai-therapist/types';
 import {
   fetchCalendarRange,
   unmarkPeriodStart as apiUnmarkPeriodStart,
+  unmarkPeriodEnd as apiUnmarkPeriodEnd,
   upsertLog,
   type UpsertLogInput,
 } from '../lib/api';
@@ -29,6 +30,8 @@ export interface CalendarLogsState {
   entries: IBloomCalendarEntry[];
   /** ISO YYYY-MM-DD set'leri — calendar cells fast lookup için */
   periodStartIso: Set<string>;
+  /** Kullanıcı tarafından "regl son günü" olarak işaretlenmiş günler */
+  periodEndIso: Set<string>;
   /** any flow (none dahil değil) loglanan günler */
   flowDayIso: Set<string>;
   /** payload non-empty günler (UI ek badge için) */
@@ -74,6 +77,10 @@ export function useCalendarLogs() {
 
   const periodStartIso = useMemo(
     () => new Set(entries.filter((e) => e.isPeriodStart).map((e) => e.logDate)),
+    [entries],
+  );
+  const periodEndIso = useMemo(
+    () => new Set(entries.filter((e) => e.isPeriodEnd).map((e) => e.logDate)),
     [entries],
   );
   const flowDayIso = useMemo(
@@ -125,6 +132,39 @@ export function useCalendarLogs() {
     [user?.id, reload],
   );
 
+  const markPeriodEnd = useCallback(
+    async (date: Date): Promise<boolean> => {
+      if (!user?.id) return false;
+      try {
+        await upsertLog(
+          { clerkUserId: user.id },
+          { logDate: toIso(date), isPeriodEnd: true },
+        );
+        await reload();
+        return true;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'mark-end-failed');
+        return false;
+      }
+    },
+    [user?.id, reload],
+  );
+
+  const unmarkPeriodEnd = useCallback(
+    async (date: Date): Promise<boolean> => {
+      if (!user?.id) return false;
+      try {
+        await apiUnmarkPeriodEnd({ clerkUserId: user.id }, toIso(date));
+        await reload();
+        return true;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'unmark-end-failed');
+        return false;
+      }
+    },
+    [user?.id, reload],
+  );
+
   const writeLog = useCallback(
     async (input: UpsertLogInput): Promise<boolean> => {
       if (!user?.id) return false;
@@ -143,6 +183,7 @@ export function useCalendarLogs() {
   return {
     entries,
     periodStartIso,
+    periodEndIso,
     flowDayIso,
     payloadDayIso,
     loading,
@@ -150,6 +191,8 @@ export function useCalendarLogs() {
     reload,
     markPeriodStart,
     unmarkPeriodStart,
+    markPeriodEnd,
+    unmarkPeriodEnd,
     writeLog,
   };
 }

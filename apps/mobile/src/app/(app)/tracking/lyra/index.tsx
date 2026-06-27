@@ -23,17 +23,18 @@ import Animated, {
   withRepeat, withSequence,
   runOnJS, interpolate, Extrapolation, Easing,
 } from 'react-native-reanimated';
-import { PageCurl } from '../../features/journal/page-curl';
-import { LibraryShelf } from '../../features/journal/library-shelf';
-import { THEMES, isDarkTheme, type Notebook, type ThemeId, type Theme } from '../../features/journal/notebooks';
-import { useNotebooks } from '../../features/journal/use-notebooks';
-import { showAddNotebookFlow, showNotebookContextMenu, showDeleteNotebookFlow } from '../../features/journal/notebook-flows';
-import { openSecretNotebook } from '../../features/journal/secret-notebook-flow';
-import { useVoiceInput } from '../../features/journal/use-voice-input';
-import { VoiceMicButton } from '../../features/journal/voice-mic-button';
-import { LyraChatButton } from '../../features/journal/lyra-chat-button';
-import { LyraChatModal } from '../../features/journal/lyra-chat-modal';
-import type { JournalChatContext } from '../../features/journal/use-journal-chat';
+import { PageCurl } from '@/features/journal/page-curl';
+import { LibraryShelf } from '@/features/journal/library-shelf';
+import { THEMES, isDarkTheme, type Notebook, type ThemeId, type Theme } from '@/features/journal/notebooks';
+import { useNotebooks } from '@/features/journal/use-notebooks';
+import { showAddNotebookFlow, showNotebookContextMenu, showDeleteNotebookFlow } from '@/features/journal/notebook-flows';
+import { openSecretNotebook } from '@/features/journal/secret-notebook-flow';
+import { useVoiceInput } from '@/features/journal/use-voice-input';
+import { VoiceMicButton } from '@/features/journal/voice-mic-button';
+import { LyraChatButton } from '@/features/journal/lyra-chat-button';
+import { LyraChatModal } from '@/features/journal/lyra-chat-modal';
+import type { JournalChatContext } from '@/features/journal/use-journal-chat';
+import { BackToTrackingButton } from '@/components/back-to-tracking-button';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const PAGE_W = SCREEN_W - 32;
@@ -95,7 +96,7 @@ function CoverPage({ theme }: { theme: Theme }) {
 
       <View style={styles.coverContent}>
         <Animated.Image
-          source={require('../../../assets/journal/magical-writing.png')}
+          source={require('../../../../../assets/journal/magical-writing.png')}
           style={[styles.coverIllustration, floatStyle]}
           resizeMode="contain"
         />
@@ -613,7 +614,7 @@ function NotebookView({
               {/* Cat — sadece "Günlük" (standard) defterinde, kapak sayfası dışında */}
               {showCat && !isOnCover && (
                 <Animated.Image
-                  source={require('../../../assets/journal-cat.png')}
+                  source={require('../../../../../assets/journal-cat.png')}
                   style={[styles.cat, catAnimatedStyle]}
                   resizeMode="contain"
                 />
@@ -819,6 +820,8 @@ export default function JournalScreen() {
         onAddNotebook={handleAddNotebook}
         onLongPressNotebook={handleLongPressNotebook}
       />
+
+      <BackToTrackingButton tint="#9A7DE4" />
 
       {/* Lyra chat butonu — rafta sağ-altta, native tab bar'ın üstünde.
           NativeTabs ~50pt + bir miktar nefes payı = bottom 110. */}

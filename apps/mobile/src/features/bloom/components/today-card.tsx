@@ -1,5 +1,7 @@
-import { View, Text as RNText, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Text as RNText, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Host, Button } from '@expo/ui/swift-ui';
 import type { IBloomToday } from '@ai-therapist/types';
 import { colors } from '@/constants/theme';
 import { useTranslation } from '@/i18n';
@@ -18,6 +20,7 @@ interface Props {
 
 export function TodayCard({ today, onMarkPeriodStartToday, todayIsLoggedPeriod }: Props) {
   const { t, locale } = useTranslation();
+  const router = useRouter();
   const presentation = today.phase ? phasePresentation[today.phase] : null;
   const showMarkCta = !!onMarkPeriodStartToday && !todayIsLoggedPeriod;
 
@@ -74,38 +77,37 @@ export function TodayCard({ today, onMarkPeriodStartToday, todayIsLoggedPeriod }
       {/* "Did your period start today?" CTA — only when today is not yet a
           logged period day. Tapping opens a confirm Alert (iOS native). */}
       {showMarkCta && (
-        <Pressable
-          style={st.markCta}
-          onPress={() => {
-            Alert.alert(
-              t('bloom.today.markPeriodConfirmTitle'),
-              t('bloom.today.markPeriodConfirmBody'),
-              [
-                { text: t('bloom.today.cancel'), style: 'cancel' },
-                {
-                  text: t('bloom.today.confirm'),
-                  style: 'default',
-                  onPress: onMarkPeriodStartToday,
-                },
-              ],
-              { userInterfaceStyle: 'dark' },
-            );
-          }}
-        >
-          <Ionicons name="water" size={16} color="#C44A6E" />
-          <RNText style={st.markCtaText}>{t('bloom.today.markPeriodTodayCta')}</RNText>
-          <Ionicons name="chevron-forward" size={14} color={colors.text.muted} />
-        </Pressable>
+        <Host matchContents style={st.btnHost}>
+          <Button
+            label={t('bloom.today.markPeriodTodayCta')}
+            systemImage="drop.fill"
+            onPress={() => {
+              Alert.alert(
+                t('bloom.today.markPeriodConfirmTitle'),
+                t('bloom.today.markPeriodConfirmBody'),
+                [
+                  { text: t('bloom.today.cancel'), style: 'cancel' },
+                  {
+                    text: t('bloom.today.confirm'),
+                    style: 'default',
+                    onPress: onMarkPeriodStartToday,
+                  },
+                ],
+                { userInterfaceStyle: 'dark' },
+              );
+            }}
+          />
+        </Host>
       )}
 
-      {/* Quick log (placeholder for Adım 2.4) */}
-      <Pressable
-        style={st.logBtn}
-        onPress={() => Alert.alert(t('bloom.today.quickLog'), t('bloom.today.quickLogSoon'))}
-      >
-        <Ionicons name="add-circle-outline" size={18} color={colors.brand[200]} />
-        <RNText style={st.logText}>{t('bloom.today.quickLog')}</RNText>
-      </Pressable>
+      {/* Quick log → "Logla" sekmesine geç */}
+      <Host matchContents style={st.btnHost}>
+        <Button
+          label={t('bloom.today.quickLog')}
+          systemImage="plus.circle"
+          onPress={() => router.push('/(app)/tracking/bloom/log' as never)}
+        />
+      </Host>
     </View>
   );
 }
@@ -148,35 +150,8 @@ const st = StyleSheet.create({
   predRange: { fontSize: 16, color: colors.text.primary, fontWeight: '600' },
   predWithheld: { fontSize: 14, color: colors.text.secondary, lineHeight: 19 },
 
-  markCta: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(196, 74, 110, 0.35)',
-    backgroundColor: 'rgba(196, 74, 110, 0.08)',
+  btnHost: {
+    marginTop: 12,
+    alignSelf: 'stretch',
   },
-  markCtaText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text.primary,
-    fontWeight: '600',
-  },
-  logBtn: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.surface.tertiary,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(98,55,201,0.25)',
-  },
-  logText: { color: colors.brand[200], fontSize: 14, fontWeight: '600' },
 });

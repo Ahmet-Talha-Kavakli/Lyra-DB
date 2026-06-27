@@ -24,6 +24,7 @@ interface LogBody {
   logDate: string;
   flow?: TFlow | null;
   isPeriodStart?: boolean;
+  isPeriodEnd?: boolean;
   notes?: string | null;
   payload?: any;
 }
@@ -98,6 +99,14 @@ export class BloomController {
     @Param('date') date: string,
   ) {
     return this.bloom.unmarkPeriodStart(clerkId, date);
+  }
+
+  @Post('log/:date/unmark-period-end')
+  unmarkPeriodEnd(
+    @Headers('x-clerk-user-id') clerkId: string,
+    @Param('date') date: string,
+  ) {
+    return this.bloom.unmarkPeriodEnd(clerkId, date);
   }
 
   @Get('calendar')

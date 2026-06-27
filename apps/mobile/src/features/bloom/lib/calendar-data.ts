@@ -115,6 +115,9 @@ interface ComputeOptions {
    * `profile.lastPeriodStart..+4` aralığı kullanılır.
    */
   periodStartIso?: Set<string>;
+  /** Kullanıcının "regl son günü" işaretleri. Bir start'a eşleşmesi için
+   *  start'tan sonraki en yakın end olarak yorumlanır. Yoksa fallback +4 gün. */
+  periodEndIso?: Set<string>;
   flowDayIso?: Set<string>;
 }
 
@@ -159,7 +162,8 @@ export function computeDayCell(target: Date, opts: ComputeOptions): DayCell {
 
   // Period detection. Sources, in priority order:
   //   a) `flowDayIso` — user explicitly logged a flow on this day
-  //   b) `periodStartIso` — derive a 5-day window from each marked start
+  //   b) `periodStartIso` + `periodEndIso` — start'tan sonraki ilk end ile
+  //      kapanan aralık. End yoksa fallback start..+4 gün (5-day visual).
   //   c) Fallback: profile.lastPeriodStart..+4 (only when there are no logs
   //      at all — i.e. onboarding-only state)
   const iso = isoOf(date);
@@ -168,9 +172,29 @@ export function computeDayCell(target: Date, opts: ComputeOptions): DayCell {
   if (opts.flowDayIso && opts.flowDayIso.has(iso)) {
     isPeriod = true;
   } else if (opts.periodStartIso && opts.periodStartIso.size > 0) {
-    for (const startIso of opts.periodStartIso) {
-      const d = diffDays(date, new Date(`${startIso}T00:00:00.000Z`));
-      if (d >= 0 && d <= 4) {
+    // Build sorted start + end arrays once. Cheap (k<<n).
+    const starts = Array.from(opts.periodStartIso)
+      .map((s) => toUtcMidnight(new Date(`${s}T00:00:00.000Z`)))
+      .sort((a, b) => a.getTime() - b.getTime());
+    const ends = Array.from(opts.periodEndIso ?? [])
+      .map((s) => toUtcMidnight(new Date(`${s}T00:00:00.000Z`)))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    for (let i = 0; i < starts.length; i++) {
+      const start = starts[i]!;
+      const nextStart = starts[i + 1] ?? null;
+      // Find first end on/after this start, before the next start (if any)
+      let matchedEnd: Date | null = null;
+      for (const e of ends) {
+        if (e.getTime() < start.getTime()) continue;
+        if (nextStart && e.getTime() >= nextStart.getTime()) break;
+        matchedEnd = e;
+        break;
+      }
+      const periodEnd = matchedEnd ?? addDays(start, 4); // 5-day fallback
+      const dFromStart = diffDays(date, start);
+      const dFromEnd = diffDays(date, periodEnd);
+      if (dFromStart >= 0 && dFromEnd <= 0) {
         isPeriod = true;
         break;
       }

@@ -71,12 +71,16 @@
       "monthFull": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
       "actions": {
         "markPeriodStart": "Mark period start",
-        "unmarkPeriodStart": "Unmark period start",
+        "unmarkPeriodStart": "Remove start mark",
+        "markPeriodEnd": "Mark period end (last day)",
+        "unmarkPeriodEnd": "Remove end mark",
         "cancel": "Cancel"
       },
       "toast": {
         "marked": "Period start marked",
-        "unmarked": "Period start removed",
+        "unmarked": "Start mark removed",
+        "endMarked": "Period end marked",
+        "endUnmarked": "End mark removed",
         "undo": "Undo"
       },
       "markPeriodToday": "Did your period start today?",
